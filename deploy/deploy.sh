@@ -63,5 +63,5 @@ sudo -u deploy php artisan queue:restart 2>/dev/null || true
 
 echo ""
 echo "=== Deploy Complete! ==="
-echo "Backend: https://aplab.my.id"
-echo "API: https://aplab.my.id/api/v1/"
+echo "Backend: https://applab.my.id"
+echo "API: https://applab.my.id/api/v1/"

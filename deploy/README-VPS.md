@@ -1,11 +1,11 @@
 # ============================================
 # VPS Deployment Guide
-# Backend Absensi — aplab.my.id
+# Backend Absensi — applab.my.id
 # ============================================
 
 ## Overview
 
-- **Domain**: aplab.my.id
+- **Domain**: applab.my.id
 - **Backend**: Laravel 12 (PHP 8.2 + Nginx + Supervisor)
 - **Database**: Neon PostgreSQL (cloud)
 - **Frontend**: Vercel (https://frontend-jyd25.vercel.app)
@@ -14,7 +14,7 @@
 ## Prerequisites
 
 - VPS dari Rumahweb (Ubuntu 22.04/24.04)
-- Domain aplab.my.id sudah pointing ke IP VPS (A record)
+- Domain applab.my.id sudah pointing ke IP VPS (A record)
 - SSH access ke VPS
 
 ## Quick Start
@@ -68,7 +68,7 @@ APP_NAME="Absensi System"
 APP_ENV=production
 APP_KEY=base64:xxx
 APP_DEBUG=false
-APP_URL=https://aplab.my.id
+APP_URL=https://applab.my.id
 FRONTEND_URL=https://frontend-jyd25.vercel.app
 
 APP_LOCALE=id
@@ -105,7 +105,7 @@ JWT_REFRESH_TTL=10080
 REVERB_APP_KEY=(generate new)
 REVERB_APP_SECRET=(generate new)
 REVERB_APP_ID=(generate new)
-REVERB_HOST=aplab.my.id
+REVERB_HOST=applab.my.id
 REVERB_PORT=443
 REVERB_SCHEME=https
 
@@ -126,7 +126,7 @@ php artisan db:seed --force  # Optional: seed awal
 
 ```bash
 # Copy nginx config
-sudo cp deploy/nginx-aplab.conf /etc/nginx/sites-available/absensi
+sudo cp deploy/nginx-applab.conf /etc/nginx/sites-available/absensi
 sudo ln -sf /etc/nginx/sites-available/absensi /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
@@ -139,7 +139,7 @@ sudo systemctl reload nginx
 
 ```bash
 # Pastikan domain sudah pointing
-sudo certbot --nginx -d aplab.my.id -d www.aplab.my.id
+sudo certbot --nginx -d applab.my.id -d www.applab.my.id
 ```
 
 Setelah SSL, uncomment block HTTPS di nginx config:
@@ -190,7 +190,7 @@ php artisan event:cache
 ├── deploy/                 # Deployment configs
 │   ├── setup-vps.sh       # Initial VPS setup
 │   ├── deploy.sh          # Pull & deploy script
-│   ├── nginx-aplab.conf   # Nginx config
+│   ├── nginx-applab.conf   # Nginx config
 │   ├── supervisor-worker.conf
 │   ├── supervisor-reverb.conf
 │   └── crontab.txt
@@ -298,4 +298,4 @@ Pastikan di `config/cors.php`:
 - [ ] Cron scheduler active
 - [ ] Permissions correct
 - [ ] CORS configured for Vercel URL
-- [ ] Frontend .env VITE_API_URL set to https://aplab.my.id/api/v1
+- [ ] Frontend .env VITE_API_URL set to https://applab.my.id/api/v1
