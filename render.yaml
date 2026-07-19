@@ -1,0 +1,101 @@
+services:
+  - type: web
+    name: absensi-backend
+    runtime: php
+    plan: free
+    buildCommand: ./bin/render-build.sh
+    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
+    envVars:
+      - key: APP_NAME
+        value: "Absensi System"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_URL
+        generateValue: false
+      - key: APP_LOCALE
+        value: id
+      - key: APP_TIMEZONE
+        value: Asia/Jakarta
+      - key: APP_KEY
+        generateValue: true
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        syncFromDatabase: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_DATABASE
+        syncFromDatabase: false
+      - key: DB_USERNAME
+        syncFromDatabase: false
+      - key: DB_PASSWORD
+        syncFromDatabase: false
+      - key: DB_SSLMODE
+        value: require
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: LOG_CHANNEL
+        value: stack
+      - key: LOG_LEVEL
+        value: warning
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGO
+        value: HS256
+      - key: JWT_TTL
+        value: "60"
+      - key: JWT_REFRESH_TTL
+        value: "10080"
+      - key: BROADCAST_CONNECTION
+        value: reverb
+
+  - type: cron
+    name: absensi-scheduler
+    runtime: php
+    plan: free
+    buildCommand: ./bin/render-build.sh
+    schedule: "* * * * *"
+    startCommand: php artisan schedule:run
+    envVars:
+      - key: APP_NAME
+        value: "Absensi System"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_LOCALE
+        value: id
+      - key: APP_TIMEZONE
+        value: Asia/Jakarta
+      - key: APP_KEY
+        generateValue: true
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        syncFromDatabase: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_DATABASE
+        syncFromDatabase: false
+      - key: DB_USERNAME
+        syncFromDatabase: false
+      - key: DB_PASSWORD
+        syncFromDatabase: false
+      - key: DB_SSLMODE
+        value: require
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BROADCAST_CONNECTION
+        value: reverb
