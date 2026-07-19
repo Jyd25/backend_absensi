@@ -1,0 +1,10 @@
+vendor/
+node_modules/
+.env
+.env.backup
+*.log
+.DS_Store
+.idea/
+.vscode/
+.phpunit.result.cache
+storage/logs/*.log
