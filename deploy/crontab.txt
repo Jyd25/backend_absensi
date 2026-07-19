@@ -1,0 +1,7 @@
+# ============================================
+# Crontab — Laravel Scheduler
+# Jalankan: sudo crontab -e
+# Tambahkan baris berikut:
+# ============================================
+
+* * * * * cd /var/www/absensi && php artisan schedule:run >> /dev/null 2>&1
