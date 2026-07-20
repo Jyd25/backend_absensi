@@ -58,7 +58,7 @@ class ExportController extends Controller
             });
 
         return $this->successResponse([
-            'title' => 'Laporan Absensi',
+            'title' => 'Laporan Kehadiran',
             'period' => $request->start_date . ' s/d ' . $request->end_date,
             'items' => $grouped->values(),
         ]);

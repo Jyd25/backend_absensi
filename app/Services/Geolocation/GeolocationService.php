@@ -25,7 +25,7 @@ class GeolocationService
         if ($locations->isEmpty()) {
             return [
                 'inside_radius' => false,
-                'message' => 'Tidak ada lokasi absensi yang aktif',
+                'message' => 'Tidak ada lokasi kehadiran yang aktif',
                 'distance' => null,
                 'location_name' => null,
             ];
@@ -60,8 +60,8 @@ class GeolocationService
         return [
             'inside_radius' => $insideRadius,
             'message' => $insideRadius
-                ? 'Anda berada dalam radius lokasi absensi'
-                : 'Anda berada di luar radius lokasi absensi',
+                ? 'Anda berada dalam radius lokasi kehadiran'
+                : 'Anda berada di luar radius lokasi kehadiran',
             'distance' => round($minDistance, 2),
             'radius' => (float) $bestMatch->radius,
             'location_id' => $bestMatch->id,

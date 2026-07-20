@@ -7,7 +7,7 @@
 
 set -e
 
-APP_DIR="/var/www/absensi"
+APP_DIR="/var/www/sistem-kehadiran"
 REPO="https://github.com/Jyd25/backend_absensi.git"
 BRANCH="main"
 DOMAIN="applab.my.id"
@@ -116,13 +116,13 @@ fi
 # STEP 10: Configure Nginx
 # ==================
 echo "[10/10] Configuring Nginx..."
-cat > /etc/nginx/sites-available/absensi << 'NGINX'
+cat > /etc/nginx/sites-available/sistem-kehadiran << 'NGINX'
 server {
     listen 80;
     listen [::]:80;
     server_name applab.my.id www.aplab.my.id;
 
-    root /var/www/absensi/public;
+    root /var/www/sistem-kehadiran/public;
     index index.php index.html;
 
     location / {
@@ -160,7 +160,7 @@ server {
 }
 NGINX
 
-ln -sf /etc/nginx/sites-available/absensi /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/sistem-kehadiran /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 nginx -t
@@ -170,10 +170,10 @@ systemctl reload nginx
 # Configure Supervisor — Queue Worker
 # ==================
 echo "Configuring Supervisor — Queue Worker..."
-cat > /etc/supervisor/conf.d/absensi-worker.conf << 'SUPERVISOR_WORKER'
-[program:absensi-worker]
+cat > /etc/supervisor/conf.d/sistem-kehadiran-worker.conf << 'SUPERVISOR_WORKER'
+[program:sistem-kehadiran-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/absensi/artisan queue:work database --tries=3 --timeout=3600 --max-time=3600
+command=php /var/www/sistem-kehadiran/artisan queue:work database --tries=3 --timeout=3600 --max-time=3600
 autostart=true
 autorestart=true
 stopasgroup=true
@@ -181,7 +181,7 @@ killasgroup=true
 user=root
 numprocs=2
 redirect_stderr=true
-stdout_logfile=/var/www/absensi/storage/logs/worker.log
+stdout_logfile=/var/www/sistem-kehadiran/storage/logs/worker.log
 stopwaitsecs=3600
 stopsignal=TERM
 SUPERVISOR_WORKER
@@ -190,15 +190,15 @@ SUPERVISOR_WORKER
 # Configure Supervisor — Reverb WebSocket
 # ==================
 echo "Configuring Supervisor — Reverb WebSocket..."
-cat > /etc/supervisor/conf.d/absensi-reverb.conf << 'SUPERVISOR_REVERB'
-[program:absensi-reverb]
+cat > /etc/supervisor/conf.d/sistem-kehadiran-reverb.conf << 'SUPERVISOR_REVERB'
+[program:sistem-kehadiran-reverb]
 process_name=%(program_name)s
-command=php /var/www/absensi/artisan reverb:start --port=8080
+command=php /var/www/sistem-kehadiran/artisan reverb:start --port=8080
 autostart=true
 autorestart=true
 user=root
 redirect_stderr=true
-stdout_logfile=/var/www/absensi/storage/logs/reverb.log
+stdout_logfile=/var/www/sistem-kehadiran/storage/logs/reverb.log
 stopwaitsecs=10
 stopsignal=TERM
 SUPERVISOR_REVERB
@@ -210,7 +210,7 @@ supervisorctl update
 # Setup Cron
 # ==================
 echo "Setting up Laravel scheduler cron..."
-(crontab -l 2>/dev/null; echo "* * * * * cd /var/www/absensi && php artisan schedule:run >> /dev/null 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "* * * * * cd /var/www/sistem-kehadiran && php artisan schedule:run >> /dev/null 2>&1") | crontab -
 
 # ==================
 # Set Permissions
@@ -245,8 +245,8 @@ echo "  - Composer $(composer -V --format=flat 2>/dev/null)"
 echo ""
 echo "Next steps:"
 echo "  1. Point DNS: A record @ -> 103.247.10.232"
-echo "  2. Edit .env: nano /var/www/absensi/.env"
-echo "  3. Run migrations: cd /var/www/absensi && php artisan migrate --force"
+echo "  2. Edit .env: nano /var/www/sistem-kehadiran/.env"
+echo "  3. Run migrations: cd /var/www/sistem-kehadiran && php artisan migrate --force"
 echo "  4. SSL: certbot --nginx -d applab.my.id -d www.aplab.my.id"
-echo "  5. Start services: supervisorctl start 'absensi-worker:*' absensi-reverb"
+echo "  5. Start services: supervisorctl start 'sistem-kehadiran-worker:*' sistem-kehadiran-reverb"
 echo ""

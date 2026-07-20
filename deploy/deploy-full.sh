@@ -24,14 +24,14 @@ systemctl start mysql
 
 # Create database and user
 mysql -u root <<EOSQL
-CREATE DATABASE IF NOT EXISTS absensi CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'absensi'@'127.0.0.1' IDENTIFIED BY 'Absensi\$ecure2025!';
-CREATE USER IF NOT EXISTS 'absensi'@'localhost' IDENTIFIED BY 'Absensi\$ecure2025!';
-GRANT ALL PRIVILEGES ON absensi.* TO 'absensi'@'127.0.0.1';
-GRANT ALL PRIVILEGES ON absensi.* TO 'absensi'@'localhost';
+CREATE DATABASE IF NOT EXISTS sistem_kehadiran CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'sistem_kehadiran'@'127.0.0.1' IDENTIFIED BY 'Absensi\$ecure2025!';
+CREATE USER IF NOT EXISTS 'sistem_kehadiran'@'localhost' IDENTIFIED BY 'Absensi\$ecure2025!';
+GRANT ALL PRIVILEGES ON sistem_kehadiran.* TO 'sistem_kehadiran'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON sistem_kehadiran.* TO 'sistem_kehadiran'@'localhost';
 FLUSH PRIVILEGES;
 EOSQL
-echo "  ✓ MySQL installed, database 'absensi' created"
+echo "  ✓ MySQL installed, database 'sistem_kehadiran' created"
 
 # ===== 2. INSTALL PHP 8.3 =====
 echo "[2/9] Installing PHP 8.3..."
@@ -62,8 +62,8 @@ systemctl enable redis-server && systemctl start redis-server
 
 # ===== 6. CLONE REPO =====
 echo "[6/9] Cloning backend repository..."
-mkdir -p /var/www/absensi
-cd /var/www/absensi
+mkdir -p /var/www/sistem-kehadiran
+cd /var/www/sistem-kehadiran
 rm -rf .git 2>/dev/null || true
 git clone -b main https://github.com/Jyd25/backend_absensi.git .
 
@@ -74,8 +74,8 @@ composer update --no-dev --optimize-autoloader --no-interaction
 
 # ===== 8. WRITE .ENV =====
 echo "[8/9] Writing production .env..."
-cat > /var/www/absensi/.env << 'ENVEOF'
-APP_NAME="Absensi System"
+cat > /var/www/sistem-kehadiran/.env << 'ENVEOF'
+APP_NAME="Sistem Kehadiran"
 APP_ENV=production
 APP_KEY=
 APP_DEBUG=false
@@ -99,8 +99,8 @@ LOG_LEVEL=warning
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=absensi
-DB_USERNAME=absensi
+DB_DATABASE=sistem_kehadiran
+DB_USERNAME=sistem_kehadiran
 DB_PASSWORD=Absensi$ecure2025!
 
 SESSION_DRIVER=database
@@ -141,13 +141,13 @@ php artisan key:generate --force
 
 # ===== 9. NGINX CONFIG =====
 echo "Configuring Nginx..."
-cat > /etc/nginx/sites-available/absensi << 'NGINX'
+cat > /etc/nginx/sites-available/sistem-kehadiran << 'NGINX'
 server {
     listen 80;
     listen [::]:80;
     server_name api.applab.my.id;
 
-    root /var/www/absensi/public;
+    root /var/www/sistem-kehadiran/public;
     index index.php index.html;
 
     location / {
@@ -181,16 +181,16 @@ server {
 }
 NGINX
 
-ln -sf /etc/nginx/sites-available/absensi /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/sistem-kehadiran /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 
 # ===== 10. SUPERVISOR — WORKER =====
 echo "Configuring Supervisor — Queue Worker..."
-cat > /etc/supervisor/conf.d/absensi-worker.conf << 'SW'
-[program:absensi-worker]
+cat > /etc/supervisor/conf.d/sistem-kehadiran-worker.conf << 'SW'
+[program:sistem-kehadiran-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/absensi/artisan queue:work database --tries=3 --timeout=3600 --max-time=3600
+command=php /var/www/sistem-kehadiran/artisan queue:work database --tries=3 --timeout=3600 --max-time=3600
 autostart=true
 autorestart=true
 stopasgroup=true
@@ -198,22 +198,22 @@ killasgroup=true
 user=root
 numprocs=2
 redirect_stderr=true
-stdout_logfile=/var/www/absensi/storage/logs/worker.log
+stdout_logfile=/var/www/sistem-kehadiran/storage/logs/worker.log
 stopwaitsecs=3600
 stopsignal=TERM
 SW
 
 # ===== 11. SUPERVISOR — REVERB =====
 echo "Configuring Supervisor — Reverb WebSocket..."
-cat > /etc/supervisor/conf.d/absensi-reverb.conf << 'SR'
-[program:absensi-reverb]
+cat > /etc/supervisor/conf.d/sistem-kehadiran-reverb.conf << 'SR'
+[program:sistem-kehadiran-reverb]
 process_name=%(program_name)s
-command=php /var/www/absensi/artisan reverb:start --port=8080
+command=php /var/www/sistem-kehadiran/artisan reverb:start --port=8080
 autostart=true
 autorestart=true
 user=root
 redirect_stderr=true
-stdout_logfile=/var/www/absensi/storage/logs/reverb.log
+stdout_logfile=/var/www/sistem-kehadiran/storage/logs/reverb.log
 stopwaitsecs=10
 stopsignal=TERM
 SR
@@ -222,14 +222,14 @@ supervisorctl reread && supervisorctl update
 
 # ===== 12. CRON =====
 echo "Setting up Laravel scheduler..."
-(crontab -l 2>/dev/null; echo "* * * * * cd /var/www/absensi && php artisan schedule:run >> /dev/null 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "* * * * * cd /var/www/sistem-kehadiran && php artisan schedule:run >> /dev/null 2>&1") | crontab -
 
 # ===== PERMISSIONS =====
-chown -R root:www-data /var/www/absensi
-find /var/www/absensi -type d -exec chmod 775 {} \;
-find /var/www/absensi -type f -exec chmod 664 {} \;
-chmod -R 775 /var/www/absensi/storage 2>/dev/null || true
-chmod -R 775 /var/www/absensi/bootstrap/cache 2>/dev/null || true
+chown -R root:www-data /var/www/sistem-kehadiran
+find /var/www/sistem-kehadiran -type d -exec chmod 775 {} \;
+find /var/www/sistem-kehadiran -type f -exec chmod 664 {} \;
+chmod -R 775 /var/www/sistem-kehadiran/storage 2>/dev/null || true
+chmod -R 775 /var/www/sistem-kehadiran/bootstrap/cache 2>/dev/null || true
 
 # ===== MIGRATE + SEED =====
 echo "Running migrations + seeders..."
@@ -243,8 +243,8 @@ php artisan view:cache
 php artisan event:cache
 
 # ===== START SERVICES =====
-supervisorctl start "absensi-worker:*"
-supervisorctl start absensi-reverb
+supervisorctl start "sistem-kehadiran-worker:*"
+supervisorctl start sistem-kehadiran-reverb
 
 # ===== DONE =====
 echo ""

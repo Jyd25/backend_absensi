@@ -78,9 +78,9 @@ usermod -aG www-data deploy
 usermod -aG sudo deploy
 
 # ---- Create app directory ----
-mkdir -p /var/www/absensi
-chown -R deploy:www-data /var/www/absensi
-chmod -R 775 /var/www/absensi
+mkdir -p /var/www/sistem-kehadiran
+chown -R deploy:www-data /var/www/sistem-kehadiran
+chmod -R 775 /var/www/sistem-kehadiran
 
 # ---- SSL (Let's Encrypt) ----
 echo ""
@@ -93,7 +93,7 @@ echo ""
 echo "Next steps:"
 echo "1. Point domain applab.my.id to VPS IP (A record)"
 echo "2. Run: sudo certbot --nginx -d applab.my.id -d www.applab.my.id"
-echo "3. Clone backend repo to /var/www/absensi"
+echo "3. Clone backend repo to /var/www/sistem-kehadiran"
 echo "4. Configure .env"
 echo "5. Run deploy script"
 echo ""

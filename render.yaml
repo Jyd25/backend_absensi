@@ -7,7 +7,7 @@ services:
     startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
     envVars:
       - key: APP_NAME
-        value: "Absensi System"
+        value: "Sistem Kehadiran"
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
@@ -64,7 +64,7 @@ services:
     startCommand: php artisan schedule:run
     envVars:
       - key: APP_NAME
-        value: "Absensi System"
+        value: "Sistem Kehadiran"
       - key: APP_ENV
         value: production
       - key: APP_DEBUG

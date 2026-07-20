@@ -1,6 +1,6 @@
 # ============================================
 # VPS Deployment Guide
-# Backend Absensi — applab.my.id
+# Backend Sistem Kehadiran — applab.my.id
 # ============================================
 
 ## Overview
@@ -46,7 +46,7 @@ ssh root@IP_VPS_ANDA "bash /tmp/setup-vps.sh"
 su - deploy
 
 # Clone backend
-cd /var/www/absensi
+cd /var/www/sistem-kehadiran
 sudo -u deploy git clone https://github.com/Jyd25/backend_absensi.git .
 sudo -u deploy git checkout main
 
@@ -64,7 +64,7 @@ nano .env  # Edit environment variables
 Edit `.env` dengan values production:
 
 ```env
-APP_NAME="Absensi System"
+APP_NAME="Sistem Kehadiran"
 APP_ENV=production
 APP_KEY=base64:xxx
 APP_DEBUG=false
@@ -126,8 +126,8 @@ php artisan db:seed --force  # Optional: seed awal
 
 ```bash
 # Copy nginx config
-sudo cp deploy/nginx-applab.conf /etc/nginx/sites-available/absensi
-sudo ln -sf /etc/nginx/sites-available/absensi /etc/nginx/sites-enabled/
+sudo cp deploy/nginx-applab.conf /etc/nginx/sites-available/sistem-kehadiran
+sudo ln -sf /etc/nginx/sites-available/sistem-kehadiran /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
 # Test & reload
@@ -144,7 +144,7 @@ sudo certbot --nginx -d applab.my.id -d www.applab.my.id
 
 Setelah SSL, uncomment block HTTPS di nginx config:
 ```bash
-sudo nano /etc/nginx/sites-available/absensi
+sudo nano /etc/nginx/sites-available/sistem-kehadiran
 # Uncomment the HTTPS server block
 sudo nginx -t && sudo systemctl reload nginx
 ```
@@ -159,8 +159,8 @@ sudo cp deploy/supervisor-reverb.conf /etc/supervisor/conf.d/
 # Reload supervisor
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start "absensi-worker:*"
-sudo supervisorctl start absensi-reverb
+sudo supervisorctl start "sistem-kehadiran-worker:*"
+sudo supervisorctl start sistem-kehadiran-reverb
 
 # Verify
 sudo supervisorctl status
@@ -170,13 +170,13 @@ sudo supervisorctl status
 
 ```bash
 # Add to crontab
-(crontab -l 2>/dev/null; echo "* * * * * cd /var/www/absensi && php artisan schedule:run >> /dev/null 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "* * * * * cd /var/www/sistem-kehadiran && php artisan schedule:run >> /dev/null 2>&1") | crontab -
 ```
 
 ### 10. Cache Optimization
 
 ```bash
-cd /var/www/absensi
+cd /var/www/sistem-kehadiran
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
@@ -186,7 +186,7 @@ php artisan event:cache
 ## File Structure
 
 ```
-/var/www/absensi/          # Laravel root
+/var/www/sistem-kehadiran/          # Laravel root
 ├── deploy/                 # Deployment configs
 │   ├── setup-vps.sh       # Initial VPS setup
 │   ├── deploy.sh          # Pull & deploy script
@@ -205,7 +205,7 @@ php artisan event:cache
 ### Update After Git Push
 
 ```bash
-cd /var/www/absensi
+cd /var/www/sistem-kehadiran
 bash deploy/deploy.sh
 ```
 
@@ -213,10 +213,10 @@ bash deploy/deploy.sh
 
 ```bash
 # Queue worker
-sudo supervisorctl restart absensi-worker:*
+sudo supervisorctl restart sistem-kehadiran-worker:*
 
 # Reverb WebSocket
-sudo supervisorctl restart absensi-reverb
+sudo supervisorctl restart sistem-kehadiran-reverb
 
 # Nginx
 sudo systemctl reload nginx
@@ -225,8 +225,8 @@ sudo systemctl reload nginx
 sudo systemctl reload php8.2-fpm
 
 # Check logs
-tail -f /var/www/absensi/storage/logs/worker.log
-tail -f /var/www/absensi/storage/logs/reverb.log
+tail -f /var/www/sistem-kehadiran/storage/logs/worker.log
+tail -f /var/www/sistem-kehadiran/storage/logs/reverb.log
 ```
 
 ### SSL Renewal
@@ -250,14 +250,14 @@ ls -la /var/run/php/php8.2-fpm.sock
 ### Queue Worker Not Running
 ```bash
 sudo supervisorctl status
-sudo supervisorctl restart absensi-worker:*
-cat /var/www/absensi/storage/logs/worker.log
+sudo supervisorctl restart sistem-kehadiran-worker:*
+cat /var/www/sistem-kehadiran/storage/logs/worker.log
 ```
 
 ### Reverb WebSocket Not Connecting
 ```bash
-sudo supervisorctl status absensi-reverb
-cat /var/www/absensi/storage/logs/reverb.log
+sudo supervisorctl status sistem-kehadiran-reverb
+cat /var/www/sistem-kehadiran/storage/logs/reverb.log
 
 # Check port 8080
 sudo netstat -tlnp | grep 8080
@@ -265,9 +265,9 @@ sudo netstat -tlnp | grep 8080
 
 ### Permission Issues
 ```bash
-sudo chown -R deploy:www-data /var/www/absensi
-sudo chmod -R 775 /var/www/absensi/storage
-sudo chmod -R 775 /var/www/absensi/bootstrap/cache
+sudo chown -R deploy:www-data /var/www/sistem-kehadiran
+sudo chmod -R 775 /var/www/sistem-kehadiran/storage
+sudo chmod -R 775 /var/www/sistem-kehadiran/bootstrap/cache
 ```
 
 ### Database Connection

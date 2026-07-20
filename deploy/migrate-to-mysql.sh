@@ -7,10 +7,10 @@
 
 set -e
 
-APP_DIR="/var/www/absensi"
+APP_DIR="/var/www/sistem-kehadiran"
 APP_USER="www-data"
-DB_NAME="absensi"
-DB_USER="absensi"
+DB_NAME="sistem_kehadiran"
+DB_USER="sistem_kehadiran"
 DB_PASS="Absensi\$ecure2025!"
 ROOT_PASS=$(openssl rand -base64 16)
 

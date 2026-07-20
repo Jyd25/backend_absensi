@@ -6,11 +6,11 @@
 
 set -e
 
-APP_DIR="/var/www/absensi"
+APP_DIR="/var/www/sistem-kehadiran"
 REPO="https://github.com/Jyd25/backend_absensi.git"
 BRANCH="main"
 
-echo "=== Deploying Absensi Backend ==="
+echo "=== Deploying Sistem Kehadiran Backend ==="
 
 cd "$APP_DIR"
 

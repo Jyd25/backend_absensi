@@ -34,8 +34,8 @@ ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable
 systemctl enable redis-server && systemctl start redis-server
 
 # 8. Clone backend
-mkdir -p /var/www/absensi
-cd /var/www/absensi
+mkdir -p /var/www/sistem-kehadiran
+cd /var/www/sistem-kehadiran
 git clone -b main https://github.com/Jyd25/backend_absensi.git . 2>/dev/null || git pull origin main
 
 # 9. Install PHP deps
@@ -48,6 +48,6 @@ php artisan key:generate --force
 echo ""
 echo "============================================"
 echo "  BASIC SETUP COMPLETE!"
-echo "  Now edit .env: nano /var/www/absensi/.env"
+echo "  Now edit .env: nano /var/www/sistem-kehadiran/.env"
 echo "  Then continue with nginx config..."
 echo "============================================"

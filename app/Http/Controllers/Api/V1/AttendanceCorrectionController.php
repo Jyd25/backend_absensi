@@ -62,8 +62,8 @@ class AttendanceCorrectionController extends Controller
         ]);
 
         $this->notifyAdmins(
-            'Perbaikan Absensi Baru',
-            "{$user->name} mengajukan perbaikan absensi untuk tanggal {$request->date}",
+            'Perbaikan Kehadiran Baru',
+            "{$user->name} mengajukan perbaikan kehadiran untuk tanggal {$request->date}",
             'info',
             ['correction_id' => $correction->id, 'employee_id' => $user->employee_id, 'action' => 'create']
         );
@@ -118,7 +118,7 @@ class AttendanceCorrectionController extends Controller
                 $this->notifyUser(
                     $user->id,
                     'Perbaikan Disetujui',
-                    "Perbaikan absensi tanggal {$correction->date} telah disetujui.",
+                    "Perbaikan kehadiran tanggal {$correction->date} telah disetujui.",
                     'success',
                     ['correction_id' => $correction->id, 'action' => 'approved']
                 );
@@ -148,7 +148,7 @@ class AttendanceCorrectionController extends Controller
                 $this->notifyUser(
                     $user->id,
                     'Perbaikan Ditolak',
-                    "Perbaikan absensi tanggal {$correction->date} ditolak. Alasan: {$request->admin_note}",
+                    "Perbaikan kehadiran tanggal {$correction->date} ditolak. Alasan: {$request->admin_note}",
                     'warning',
                     ['correction_id' => $correction->id, 'action' => 'rejected']
                 );
