@@ -11,51 +11,69 @@ echo "  Domain: api.applab.my.id"
 echo "============================================"
 
 # ===== 1. SYSTEM UPDATE =====
-echo "[1/8] Updating system..."
+echo "[1/9] Updating system..."
 apt update && apt upgrade -y
 apt install -y curl wget git unzip software-properties-common apt-transport-https ca-certificates gnupg lsb-release ufw redis-server
 
+# ===== 1b. INSTALL MYSQL =====
+echo "[1b/9] Installing MySQL..."
+export DEBIAN_FRONTEND=noninteractive
+apt install -y mysql-server mysql-client
+systemctl enable mysql
+systemctl start mysql
+
+# Create database and user
+mysql -u root <<EOSQL
+CREATE DATABASE IF NOT EXISTS absensi CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'absensi'@'127.0.0.1' IDENTIFIED BY 'Absensi\$ecure2025!';
+CREATE USER IF NOT EXISTS 'absensi'@'localhost' IDENTIFIED BY 'Absensi\$ecure2025!';
+GRANT ALL PRIVILEGES ON absensi.* TO 'absensi'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON absensi.* TO 'absensi'@'localhost';
+FLUSH PRIVILEGES;
+EOSQL
+echo "  ✓ MySQL installed, database 'absensi' created"
+
 # ===== 2. INSTALL PHP 8.3 =====
-echo "[2/8] Installing PHP 8.3..."
+echo "[2/9] Installing PHP 8.3..."
 add-apt-repository ppa:ondrej/php -y
 apt update
 apt install -y php8.3 php8.3-fpm php8.3-cli php8.3-common \
-  php8.3-pgsql php8.3-sqlite3 php8.3-mbstring php8.3-xml \
+  php8.3-mysql php8.3-sqlite3 php8.3-mbstring php8.3-xml \
   php8.3-curl php8.3-gd php8.3-imagick php8.3-bcmath \
   php8.3-intl php8.3-zip php8.3-readline php8.3-opcache
 
 # ===== 3. INSTALL COMPOSER =====
-echo "[3/8] Installing Composer..."
+echo "[3/9] Installing Composer..."
 curl -sS https://getcomposer.org/installer | php
 mv composer.phar /usr/local/bin/composer
 chmod +x /usr/local/bin/composer
 export COMPOSER_ALLOW_SUPERUSER=1
 
 # ===== 4. INSTALL NGINX + SUPERVISOR =====
-echo "[4/8] Installing Nginx + Supervisor..."
+echo "[4/9] Installing Nginx + Supervisor..."
 apt install -y nginx supervisor
 systemctl enable nginx supervisor
 systemctl start nginx supervisor
 
 # ===== 5. FIREWALL + REDIS =====
-echo "[5/8] Configuring firewall + Redis..."
+echo "[5/9] Configuring firewall + Redis..."
 ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable
 systemctl enable redis-server && systemctl start redis-server
 
 # ===== 6. CLONE REPO =====
-echo "[6/8] Cloning backend repository..."
+echo "[6/9] Cloning backend repository..."
 mkdir -p /var/www/absensi
 cd /var/www/absensi
 rm -rf .git 2>/dev/null || true
 git clone -b main https://github.com/Jyd25/backend_absensi.git .
 
 # ===== 7. INSTALL COMPOSER DEPS (update to fix lock file) =====
-echo "[7/8] Installing dependencies (composer update)..."
+echo "[7/9] Installing dependencies (composer update)..."
 export COMPOSER_ALLOW_SUPERUSER=1
 composer update --no-dev --optimize-autoloader --no-interaction
 
 # ===== 8. WRITE .ENV =====
-echo "[8/8] Writing production .env..."
+echo "[8/9] Writing production .env..."
 cat > /var/www/absensi/.env << 'ENVEOF'
 APP_NAME="Absensi System"
 APP_ENV=production
@@ -78,14 +96,12 @@ LOG_STACK=single
 LOG_DEPRECATIONS_CHANNEL=null
 LOG_LEVEL=warning
 
-DB_CONNECTION=pgsql
-DB_HOST=ep-lingering-bird-adya0a8a-pooler.c-2.us-east-1.aws.neon.tech
-DB_PORT=5432
-DB_DATABASE=neondb
-DB_USERNAME=neondb_owner
-DB_PASSWORD=npg_dO5TDH1mkYbU
-DB_SSLMODE=require
-DB_NEON_ENDPOINT=ep-lingering-bird-adya0a8a
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=absensi
+DB_USERNAME=absensi
+DB_PASSWORD=Absensi$ecure2025!
 
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
@@ -215,9 +231,9 @@ find /var/www/absensi -type f -exec chmod 664 {} \;
 chmod -R 775 /var/www/absensi/storage 2>/dev/null || true
 chmod -R 775 /var/www/absensi/bootstrap/cache 2>/dev/null || true
 
-# ===== MIGRATE =====
-echo "Running migrations..."
-php artisan migrate --force
+# ===== MIGRATE + SEED =====
+echo "Running migrations + seeders..."
+php artisan migrate:fresh --force --seed
 
 # ===== CACHE =====
 echo "Caching config..."
