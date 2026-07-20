@@ -36,7 +36,7 @@ curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost/api/v1/ 2
 
 echo ""
 echo "5. SSL test:"
-curl -s -o /dev/null -w "HTTPS Status: %{http_code}\n" https://applab.my.id/ 2>/dev/null || echo "HTTPS not configured yet"
+curl -s -o /dev/null -w "HTTPS Status: %{http_code}\n" https://api.applab.my.id/ 2>/dev/null || echo "HTTPS not configured yet"
 
 echo ""
 echo "All checks done!"

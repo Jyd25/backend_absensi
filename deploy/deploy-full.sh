@@ -1,12 +1,13 @@
 #!/bin/bash
 # ============================================
-# FULL DEPLOY — applab.my.id
+# FULL DEPLOY — api.applab.my.id
 # Paste seluruh script ini ke SSH terminal
 # ============================================
 set -e
 
 echo "============================================"
 echo "  REALTIME ATTENDANCE SYSTEM - FULL DEPLOY"
+echo "  Domain: api.applab.my.id"
 echo "============================================"
 
 # ===== 1. SYSTEM UPDATE =====
@@ -28,6 +29,7 @@ echo "[3/8] Installing Composer..."
 curl -sS https://getcomposer.org/installer | php
 mv composer.phar /usr/local/bin/composer
 chmod +x /usr/local/bin/composer
+export COMPOSER_ALLOW_SUPERUSER=1
 
 # ===== 4. INSTALL NGINX + SUPERVISOR =====
 echo "[4/8] Installing Nginx + Supervisor..."
@@ -46,16 +48,20 @@ mkdir -p /var/www/absensi
 cd /var/www/absensi
 rm -rf .git 2>/dev/null || true
 git clone -b main https://github.com/Jyd25/backend_absensi.git .
-composer install --no-dev --optimize-autoloader --no-interaction
 
-# ===== 7. WRITE .ENV =====
-echo "[7/8] Writing production .env..."
+# ===== 7. INSTALL COMPOSER DEPS (update to fix lock file) =====
+echo "[7/8] Installing dependencies (composer update)..."
+export COMPOSER_ALLOW_SUPERUSER=1
+composer update --no-dev --optimize-autoloader --no-interaction
+
+# ===== 8. WRITE .ENV =====
+echo "[8/8] Writing production .env..."
 cat > /var/www/absensi/.env << 'ENVEOF'
 APP_NAME="Absensi System"
 APP_ENV=production
 APP_KEY=
 APP_DEBUG=false
-APP_URL=https://applab.my.id
+APP_URL=https://api.applab.my.id
 FRONTEND_URL=https://frontend-jyd25.vercel.app
 
 APP_LOCALE=id
@@ -105,7 +111,7 @@ JWT_REFRESH_TTL=10080
 REVERB_APP_KEY=4d19688de7b2e366be6ea4a09234a461
 REVERB_APP_SECRET=02002b7fcf527ab4f29385dad56a6c7b5e77d050d8080244741db15a65d256fd
 REVERB_APP_ID=868005
-REVERB_HOST=applab.my.id
+REVERB_HOST=api.applab.my.id
 REVERB_PORT=443
 REVERB_SCHEME=https
 
@@ -117,13 +123,13 @@ ENVEOF
 
 php artisan key:generate --force
 
-# ===== 8. NGINX CONFIG =====
-echo "[8/8] Configuring Nginx + Supervisor + Cron..."
+# ===== 9. NGINX CONFIG =====
+echo "Configuring Nginx..."
 cat > /etc/nginx/sites-available/absensi << 'NGINX'
 server {
     listen 80;
     listen [::]:80;
-    server_name applab.my.id www.applab.my.id;
+    server_name api.applab.my.id;
 
     root /var/www/absensi/public;
     index index.php index.html;
@@ -163,7 +169,8 @@ ln -sf /etc/nginx/sites-available/absensi /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 
-# ===== SUPERVISOR — WORKER =====
+# ===== 10. SUPERVISOR — WORKER =====
+echo "Configuring Supervisor — Queue Worker..."
 cat > /etc/supervisor/conf.d/absensi-worker.conf << 'SW'
 [program:absensi-worker]
 process_name=%(program_name)s_%(process_num)02d
@@ -180,7 +187,8 @@ stopwaitsecs=3600
 stopsignal=TERM
 SW
 
-# ===== SUPERVISOR — REVERB =====
+# ===== 11. SUPERVISOR — REVERB =====
+echo "Configuring Supervisor — Reverb WebSocket..."
 cat > /etc/supervisor/conf.d/absensi-reverb.conf << 'SR'
 [program:absensi-reverb]
 process_name=%(program_name)s
@@ -196,7 +204,8 @@ SR
 
 supervisorctl reread && supervisorctl update
 
-# ===== CRON =====
+# ===== 12. CRON =====
+echo "Setting up Laravel scheduler..."
 (crontab -l 2>/dev/null; echo "* * * * * cd /var/www/absensi && php artisan schedule:run >> /dev/null 2>&1") | crontab -
 
 # ===== PERMISSIONS =====
@@ -221,20 +230,18 @@ php artisan event:cache
 supervisorctl start "absensi-worker:*"
 supervisorctl start absensi-reverb
 
+# ===== DONE =====
 echo ""
 echo "============================================"
 echo "  DEPLOYMENT COMPLETE!"
 echo "============================================"
 echo ""
-echo "Backend:  http://applab.my.id"
-echo "API:      http://applab.my.id/api/v1/"
+echo "Backend:  http://api.applab.my.id"
+echo "API:      http://api.applab.my.id/api/v1/"
 echo ""
-echo "Services running:"
+echo "Services:"
 supervisorctl status
 echo ""
-echo "Next:"
-echo "  1. Set DNS A record: @ -> 103.247.10.232"
-echo "  2. After DNS propagates, run SSL:"
-echo "     certbot --nginx -d applab.my.id -d www.aplab.my.id"
-echo "  3. Update REVERB_HOST to applab.my.id (already done)"
+echo "Next: SSL (after DNS propagated)"
+echo "  certbot --nginx -d api.applab.my.id"
 echo "============================================"
