@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\PositionController;
+use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WorkScheduleController;
 use Illuminate\Support\Facades\Route;
@@ -44,4 +45,7 @@ Route::prefix('v1')->middleware(['jwt', 'status'])->group(function () {
         Route::get('/', [AttendanceController::class, 'index']);
         Route::get('/{id}', [AttendanceController::class, 'show']);
     });
+
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::put('/profile', [ProfileController::class, 'update']);
 });

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AttendanceCorrectionController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\FaceController;
+use App\Http\Controllers\Api\V1\FaceUpdateRequestController;
 use App\Http\Controllers\Api\V1\GeolocationController;
 use App\Http\Controllers\Api\V1\LeaveController;
 use App\Http\Controllers\Api\V1\NotificationController;
@@ -59,5 +60,12 @@ Route::prefix('v1')->middleware(['jwt', 'status'])->group(function () {
 
     Route::prefix('export')->group(function () {
         Route::get('/attendance', [ExportController::class, 'attendance']);
+    });
+
+    Route::prefix('face-update-requests')->group(function () {
+        Route::get('/', [FaceUpdateRequestController::class, 'index']);
+        Route::post('/', [FaceUpdateRequestController::class, 'store']);
+        Route::post('/{id}/approve', [FaceUpdateRequestController::class, 'approve']);
+        Route::post('/{id}/reject', [FaceUpdateRequestController::class, 'reject']);
     });
 });
