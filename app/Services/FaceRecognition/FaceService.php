@@ -58,7 +58,28 @@ class FaceService
         }
 
         $storedDescriptor = json_decode($primaryDescriptor->descriptor_path, true);
+
+        if (!is_array($storedDescriptor) || count($storedDescriptor) < 128) {
+            return [
+                'matched' => false,
+                'message' => 'Data descriptor wajah tidak valid atau belum terdaftar',
+                'score' => 0,
+                'distance' => 0,
+                'threshold' => $threshold,
+            ];
+        }
+
         $inputDescriptor = $data['descriptor'];
+
+        if (!is_array($inputDescriptor) || count($inputDescriptor) < 128) {
+            return [
+                'matched' => false,
+                'message' => 'Format descriptor input tidak valid',
+                'score' => 0,
+                'distance' => 0,
+                'threshold' => $threshold,
+            ];
+        }
 
         if (count($storedDescriptor) !== count($inputDescriptor)) {
             return [
