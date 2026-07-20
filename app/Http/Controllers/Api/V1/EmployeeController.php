@@ -9,12 +9,13 @@ use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use App\Services\EmployeeService;
 use App\Traits\ApiResponse;
+use App\Traits\SendsNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class EmployeeController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, SendsNotifications;
 
     protected EmployeeService $employeeService;
 
@@ -48,6 +49,13 @@ class EmployeeController extends Controller
 
         $employee = $this->employeeService->createWithUser($request->validated());
 
+        $this->notifyAdmins(
+            'Karyawan Baru',
+            "Karyawan baru ditambahkan: {$employee->name} ({$employee->nik})",
+            'info',
+            ['employee_id' => $employee->id, 'action' => 'create']
+        );
+
         return $this->successResponse(
             new EmployeeResource($employee),
             'Employee created successfully.',
@@ -72,6 +80,13 @@ class EmployeeController extends Controller
 
         $employee = $this->employeeService->update($employee->id, $request->validated());
 
+        $this->notifyAdmins(
+            'Karyawan Diubah',
+            "Data karyawan diubah: {$employee->name} ({$employee->nik})",
+            'info',
+            ['employee_id' => $employee->id, 'action' => 'update']
+        );
+
         return $this->successResponse(
             new EmployeeResource($employee->load(['department', 'position', 'schedule'])),
             'Employee updated successfully.'
@@ -82,7 +97,16 @@ class EmployeeController extends Controller
     {
         $this->authorize('delete', $employee);
 
+        $name = $employee->name;
+        $nik = $employee->nik;
         $employee->delete();
+
+        $this->notifyAdmins(
+            'Karyawan Dihapus',
+            "Karyawan dihapus: {$name} ({$nik})",
+            'warning',
+            ['action' => 'delete']
+        );
 
         return $this->successResponse(null, 'Employee deleted successfully.');
     }

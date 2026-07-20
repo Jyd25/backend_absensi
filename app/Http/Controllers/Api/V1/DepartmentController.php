@@ -9,12 +9,13 @@ use App\Http\Resources\DepartmentResource;
 use App\Models\Department;
 use App\Services\DepartmentService;
 use App\Traits\ApiResponse;
+use App\Traits\SendsNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class DepartmentController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, SendsNotifications;
 
     public function __construct(
         protected DepartmentService $service,
@@ -43,6 +44,13 @@ class DepartmentController extends Controller
 
         $department = $this->service->create($request->validated());
 
+        $this->notifyAdmins(
+            'Departemen Baru',
+            "Departemen baru ditambahkan: {$department->name}",
+            'info',
+            ['department_id' => $department->id, 'action' => 'create']
+        );
+
         return $this->successResponse(
             new DepartmentResource($department->loadCount('employees')),
             'Department created successfully',
@@ -65,6 +73,13 @@ class DepartmentController extends Controller
 
         $department = $this->service->update($department->id, $request->validated());
 
+        $this->notifyAdmins(
+            'Departemen Diubah',
+            "Data departemen diubah: {$department->name}",
+            'info',
+            ['department_id' => $department->id, 'action' => 'update']
+        );
+
         return $this->successResponse(
             new DepartmentResource($department->loadCount('employees')),
             'Department updated successfully'
@@ -75,7 +90,15 @@ class DepartmentController extends Controller
     {
         $this->authorize('delete', $department);
 
+        $name = $department->name;
         $this->service->delete($department->id);
+
+        $this->notifyAdmins(
+            'Departemen Dihapus',
+            "Departemen dihapus: {$name}",
+            'warning',
+            ['action' => 'delete']
+        );
 
         return $this->successResponse(null, 'Department deleted successfully');
     }

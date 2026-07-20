@@ -5,13 +5,15 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\AttendanceCorrection;
+use App\Models\User;
 use App\Traits\ApiResponse;
+use App\Traits\SendsNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AttendanceCorrectionController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, SendsNotifications;
 
     public function index(Request $request): JsonResponse
     {
@@ -59,6 +61,13 @@ class AttendanceCorrectionController extends Controller
             'status' => 'pending',
         ]);
 
+        $this->notifyAdmins(
+            'Perbaikan Absensi Baru',
+            "{$user->name} mengajukan perbaikan absensi untuk tanggal {$request->date}",
+            'info',
+            ['correction_id' => $correction->id, 'employee_id' => $user->employee_id, 'action' => 'create']
+        );
+
         return $this->successResponse($correction, 'Pengajuan perbaikan berhasil dikirim', 201);
     }
 
@@ -102,6 +111,20 @@ class AttendanceCorrectionController extends Controller
             'admin_note' => $request->admin_note,
         ]);
 
+        $employee = $correction->employee;
+        if ($employee) {
+            $user = $employee->user ?? User::where('employee_id', $employee->id)->first();
+            if ($user) {
+                $this->notifyUser(
+                    $user->id,
+                    'Perbaikan Disetujui',
+                    "Perbaikan absensi tanggal {$correction->date} telah disetujui.",
+                    'success',
+                    ['correction_id' => $correction->id, 'action' => 'approved']
+                );
+            }
+        }
+
         return $this->successResponse($correction->fresh(['employee', 'approver']), 'Perbaikan disetujui');
     }
 
@@ -117,6 +140,20 @@ class AttendanceCorrectionController extends Controller
             'approved_by' => $request->user()->id,
             'admin_note' => $request->admin_note,
         ]);
+
+        $employee = $correction->employee;
+        if ($employee) {
+            $user = $employee->user ?? User::where('employee_id', $employee->id)->first();
+            if ($user) {
+                $this->notifyUser(
+                    $user->id,
+                    'Perbaikan Ditolak',
+                    "Perbaikan absensi tanggal {$correction->date} ditolak. Alasan: {$request->admin_note}",
+                    'warning',
+                    ['correction_id' => $correction->id, 'action' => 'rejected']
+                );
+            }
+        }
 
         return $this->successResponse($correction->fresh(['employee', 'approver']), 'Perbaikan ditolak');
     }

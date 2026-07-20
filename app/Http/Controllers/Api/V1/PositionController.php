@@ -9,12 +9,13 @@ use App\Http\Resources\PositionResource;
 use App\Models\Position;
 use App\Services\PositionService;
 use App\Traits\ApiResponse;
+use App\Traits\SendsNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PositionController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, SendsNotifications;
 
     public function __construct(
         protected PositionService $service,
@@ -43,6 +44,13 @@ class PositionController extends Controller
 
         $position = $this->service->create($request->validated());
 
+        $this->notifyAdmins(
+            'Jabatan Baru',
+            "Jabatan baru ditambahkan: {$position->name}",
+            'info',
+            ['position_id' => $position->id, 'action' => 'create']
+        );
+
         return $this->successResponse(
             new PositionResource($position->load('role')->loadCount('employees')),
             'Position created successfully',
@@ -65,6 +73,13 @@ class PositionController extends Controller
 
         $position = $this->service->update($position->id, $request->validated());
 
+        $this->notifyAdmins(
+            'Jabatan Diubah',
+            "Data jabatan diubah: {$position->name}",
+            'info',
+            ['position_id' => $position->id, 'action' => 'update']
+        );
+
         return $this->successResponse(
             new PositionResource($position->load('role')->loadCount('employees')),
             'Position updated successfully'
@@ -75,7 +90,15 @@ class PositionController extends Controller
     {
         $this->authorize('delete', $position);
 
+        $name = $position->name;
         $this->service->delete($position->id);
+
+        $this->notifyAdmins(
+            'Jabatan Dihapus',
+            "Jabatan dihapus: {$name}",
+            'warning',
+            ['action' => 'delete']
+        );
 
         return $this->successResponse(null, 'Position deleted successfully');
     }

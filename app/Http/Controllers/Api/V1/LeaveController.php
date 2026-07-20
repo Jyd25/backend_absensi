@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\LeaveRequest;
+use App\Models\User;
 use App\Traits\ApiResponse;
+use App\Traits\SendsNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LeaveController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, SendsNotifications;
 
     public function index(Request $request): JsonResponse
     {
@@ -60,6 +62,20 @@ class LeaveController extends Controller
             'status' => 'pending',
         ]);
 
+        $typeLabel = match($request->type) {
+            'permission' => 'Izin',
+            'sick' => 'Sakit',
+            'leave' => 'Cuti',
+            default => 'Izin',
+        };
+
+        $this->notifyAdmins(
+            'Pengajuan Izin Baru',
+            "{$user->name} mengajukan {$typeLabel} mulai {$request->start_date} sampai {$request->end_date}",
+            'info',
+            ['leave_id' => $leave->id, 'employee_id' => $user->employee_id, 'action' => 'create']
+        );
+
         return $this->successResponse($leave, 'Pengajuan izin berhasil dikirim', 201);
     }
 
@@ -76,6 +92,27 @@ class LeaveController extends Controller
             'admin_note' => $request->admin_note,
         ]);
 
+        $employee = $leave->employee;
+        if ($employee) {
+            $user = $employee->user ?? User::where('employee_id', $employee->id)->first();
+            if ($user) {
+                $this->notifyUser(
+                    $user->id,
+                    'Izin Disetujui',
+                    'Pengajuan izin Anda telah disetujui oleh admin.',
+                    'success',
+                    ['leave_id' => $leave->id, 'action' => 'approved']
+                );
+            }
+        }
+
+        $this->notifyAdmins(
+            'Izin Disetujui',
+            "Izin {$employee->name ?? 'karyawan'} disetujui oleh {$request->user()->name}",
+            'success',
+            ['leave_id' => $leave->id, 'action' => 'approved']
+        );
+
         return $this->successResponse($leave->fresh(['employee', 'approver']), 'Izin disetujui');
     }
 
@@ -91,6 +128,20 @@ class LeaveController extends Controller
             'approved_by' => $request->user()->id,
             'admin_note' => $request->admin_note,
         ]);
+
+        $employee = $leave->employee;
+        if ($employee) {
+            $user = $employee->user ?? User::where('employee_id', $employee->id)->first();
+            if ($user) {
+                $this->notifyUser(
+                    $user->id,
+                    'Izin Ditolak',
+                    "Pengajuan izin Anda ditolak. Alasan: {$request->admin_note}",
+                    'warning',
+                    ['leave_id' => $leave->id, 'action' => 'rejected']
+                );
+            }
+        }
 
         return $this->successResponse($leave->fresh(['employee', 'approver']), 'Izin ditolak');
     }

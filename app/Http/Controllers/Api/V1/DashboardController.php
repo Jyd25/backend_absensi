@@ -6,6 +6,7 @@ use App\Enums\AttendanceStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\User;
+use App\Models\WorkSchedule;
 use App\Traits\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $today = Carbon::today();
+        $roleName = $user->role?->name;
 
         $query = Employee::active();
 
@@ -61,7 +63,7 @@ class DashboardController extends Controller
             $todayAbsent = 0;
         }
 
-        return $this->successResponse([
+        $result = [
             'total_employees' => $totalEmployees,
             'today_present' => $todayPresent,
             'today_late' => $todayLate,
@@ -69,7 +71,102 @@ class DashboardController extends Controller
             'today_leave' => $todayLeave,
             'today_permission' => $todayPermission,
             'today_sick' => $todaySick,
-        ]);
+        ];
+
+        // Pimpinan / Admin: attendance detail list
+        if (in_array($roleName, ['Administrator', 'Pimpinan'])) {
+            $todayAttendances = DB::table('attendances')
+                ->whereDate('check_in_time', $today)
+                ->get();
+
+            $attendedIds = $todayAttendances->pluck('employee_id')->toArray();
+
+            $attended = Employee::with('user')
+                ->whereIn('id', $attendedIds)
+                ->get()
+                ->map(function ($emp) use ($todayAttendances) {
+                    $att = $todayAttendances->first(fn($a) => $a->employee_id === $emp->id);
+                    return [
+                        'employee_id' => $emp->id,
+                        'name' => $emp->user->name ?? $emp->nik,
+                        'nik' => $emp->nik,
+                        'department' => $emp->department->name ?? '-',
+                        'status' => $att->attendance_status,
+                        'check_in_time' => $att->check_in_time,
+                        'check_out_time' => $att->check_out_time,
+                        'late_minutes' => $att->attendance_status === AttendanceStatus::Late->value
+                            ? $this->calculateLateMinutes($att->check_in_time, $emp->schedule_id)
+                            : 0,
+                    ];
+                })
+                ->sortBy('name')
+                ->values();
+
+            $absentEmployees = Employee::with('user')
+                ->active()
+                ->whereNotIn('id', $attendedIds)
+                ->get()
+                ->map(function ($emp) {
+                    return [
+                        'employee_id' => $emp->id,
+                        'name' => $emp->user->name ?? $emp->nik,
+                        'nik' => $emp->nik,
+                        'department' => $emp->department->name ?? '-',
+                        'status' => 'absent',
+                    ];
+                })
+                ->sortBy('name')
+                ->values();
+
+            $result['today_attendance_list'] = $attended->values();
+            $result['today_absent_list'] = $absentEmployees->values();
+        }
+
+        // Guru/Karyawan: own attendance detail
+        if (in_array($roleName, ['Guru', 'Karyawan']) && $user->employee_id) {
+            $myAttendance = DB::table('attendances')
+                ->where('employee_id', $user->employee_id)
+                ->whereDate('check_in_time', $today)
+                ->first();
+
+            $employee = Employee::with('schedule', 'department')->find($user->employee_id);
+
+            $now = Carbon::now('Asia/Jakarta');
+            $scheduleStart = null;
+            $scheduleEnd = null;
+            $isSaturday = $now->isSaturday();
+
+            if ($employee && $employee->schedule) {
+                if ($isSaturday && $employee->schedule->saturday_start_time) {
+                    $scheduleStart = $employee->schedule->saturday_start_time;
+                    $scheduleEnd = $employee->schedule->saturday_end_time;
+                } else {
+                    $scheduleStart = $employee->schedule->start_time;
+                    $scheduleEnd = $employee->schedule->end_time;
+                }
+            }
+
+            $result['my_attendance'] = $myAttendance ? [
+                'status' => $myAttendance->attendance_status,
+                'check_in_time' => $myAttendance->check_in_time,
+                'check_out_time' => $myAttendance->check_out_time,
+                'location_status' => $myAttendance->location_status,
+                'face_status' => $myAttendance->face_status,
+            ] : null;
+
+            $result['schedule'] = [
+                'start_time' => $scheduleStart,
+                'end_time' => $scheduleEnd,
+                'check_in_deadline' => '09:00',
+                'check_out_deadline' => '20:00',
+            ];
+
+            $result['current_time'] = $now->format('H:i:s');
+            $result['current_date'] = $now->format('Y-m-d');
+            $result['day_name'] = $now->translatedFormat('l');
+        }
+
+        return $this->successResponse($result);
     }
 
     public function weekly(Request $request): JsonResponse
@@ -147,5 +244,31 @@ class DashboardController extends Controller
             'absent' => $absent,
             'attendance_rate' => $totalExpected > 0 ? round(($totalActual / $totalExpected) * 100, 2) : 0,
         ]);
+    }
+
+    private function calculateLateMinutes(string $checkInTime, ?int $scheduleId): int
+    {
+        if (!$scheduleId) return 0;
+
+        $schedule = WorkSchedule::find($scheduleId);
+        if (!$schedule) return 0;
+
+        $checkIn = Carbon::parse($checkInTime);
+        $isSaturday = $checkIn->isSaturday();
+
+        if ($isSaturday && $schedule->saturday_start_time) {
+            $scheduleStart = Carbon::parse($schedule->saturday_start_time);
+        } else {
+            $scheduleStart = Carbon::parse($schedule->start_time);
+        }
+
+        $tolerance = $schedule->tolerance_minutes ?? 0;
+        $lateThreshold = $scheduleStart->copy()->addMinutes($tolerance);
+
+        if ($checkIn->gt($lateThreshold)) {
+            return max(0, $scheduleStart->diffInMinutes($checkIn) - $tolerance);
+        }
+
+        return 0;
     }
 }
