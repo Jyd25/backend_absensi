@@ -57,10 +57,6 @@ class AttendanceController extends Controller
     {
         $user = $request->user();
 
-        if (!in_array($user->role?->name, ['Guru', 'Karyawan'])) {
-            return $this->errorResponse('Anda tidak memiliki akses untuk melakukan presensi.', 403);
-        }
-
         $attendance = $this->attendanceService->checkIn(
             $request->validated(),
             $user
@@ -108,13 +104,6 @@ class AttendanceController extends Controller
 
         if (!$attendance) {
             return $this->errorResponse('Belum ada data check-in hari ini.', 404);
-        }
-
-        $isAdmin = in_array($user->role?->name, ['Administrator', 'Pimpinan']);
-        $isOwner = $attendance->employee_id === $employeeId;
-
-        if (!$isAdmin && !$isOwner) {
-            return $this->errorResponse('Anda tidak memiliki akses untuk melakukan check-out ini.', 403);
         }
 
         $attendance = $this->attendanceService->checkOut(
