@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AttendanceCorrectionController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ExportController;
@@ -30,6 +31,15 @@ Route::prefix('v1')->middleware(['jwt', 'status'])->group(function () {
         Route::get('/monthly', [ReportController::class, 'monthly']);
         Route::get('/employee', [ReportController::class, 'employee']);
         Route::get('/department', [ReportController::class, 'department']);
+    });
+
+    Route::prefix('attendances')->group(function () {
+        Route::get('/', [AttendanceController::class, 'index']);
+        Route::get('/today', [AttendanceController::class, 'today']);
+        Route::get('/history', [AttendanceController::class, 'history']);
+        Route::get('/{attendance}', [AttendanceController::class, 'show']);
+        Route::post('/check-in', [AttendanceController::class, 'store']);
+        Route::post('/check-out', [AttendanceController::class, 'checkOut']);
     });
 
     Route::prefix('faces')->group(function () {

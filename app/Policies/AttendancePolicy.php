@@ -32,7 +32,11 @@ class AttendancePolicy
 
     public function update(User $user, Attendance $attendance): bool
     {
-        return $user->role?->name === 'Administrator';
+        if (in_array($user->role?->name, ['Administrator', 'Pimpinan'])) {
+            return true;
+        }
+
+        return $user->employee_id === $attendance->employee_id;
     }
 
     public function delete(User $user, Attendance $attendance): bool
