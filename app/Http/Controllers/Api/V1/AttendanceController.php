@@ -27,8 +27,6 @@ class AttendanceController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('viewAny', Attendance::class);
-
         $query = Attendance::with(['employee', 'location', 'schedule']);
 
         if ($request->has('employee_id')) {
@@ -57,11 +55,15 @@ class AttendanceController extends Controller
 
     public function store(CheckInRequest $request): JsonResponse
     {
-        $this->authorize('create', Attendance::class);
+        $user = $request->user();
+
+        if (!in_array($user->role?->name, ['Guru', 'Karyawan'])) {
+            return $this->errorResponse('Anda tidak memiliki akses untuk melakukan presensi.', 403);
+        }
 
         $attendance = $this->attendanceService->checkIn(
             $request->validated(),
-            $request->user()
+            $user
         );
 
         $employee = $attendance->employee;
@@ -99,16 +101,21 @@ class AttendanceController extends Controller
         $employeeId = $user->employee_id;
 
         if (!$employeeId) {
-            return $this->errorResponse('No employee profile found.', 404);
+            return $this->errorResponse('Profil karyawan tidak ditemukan.', 404);
         }
 
         $attendance = $this->attendanceService->getTodayByEmployee($employeeId);
 
         if (!$attendance) {
-            return $this->errorResponse('No check-in record found for today.', 404);
+            return $this->errorResponse('Belum ada data check-in hari ini.', 404);
         }
 
-        $this->authorize('update', $attendance);
+        $isAdmin = in_array($user->role?->name, ['Administrator', 'Pimpinan']);
+        $isOwner = $attendance->employee_id === $employeeId;
+
+        if (!$isAdmin && !$isOwner) {
+            return $this->errorResponse('Anda tidak memiliki akses untuk melakukan check-out ini.', 403);
+        }
 
         $attendance = $this->attendanceService->checkOut(
             $attendance->id,
@@ -144,8 +151,6 @@ class AttendanceController extends Controller
 
     public function show(Attendance $attendance): JsonResponse
     {
-        $this->authorize('view', $attendance);
-
         $attendance->load(['employee', 'location', 'schedule']);
 
         return $this->successResponse(
