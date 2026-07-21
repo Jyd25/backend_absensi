@@ -57,10 +57,16 @@ class AttendanceController extends Controller
     {
         $user = $request->user();
 
-        $attendance = $this->attendanceService->checkIn(
+        $result = $this->attendanceService->checkIn(
             $request->validated(),
             $user
         );
+
+        if (is_array($result) && isset($result['success']) && !$result['success']) {
+            return $this->errorResponse($result['message'], 422);
+        }
+
+        $attendance = $result;
 
         $employee = $attendance->employee;
         $employeeName = $employee?->name ?? 'Karyawan';

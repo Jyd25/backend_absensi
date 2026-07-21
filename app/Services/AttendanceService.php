@@ -33,7 +33,8 @@ class AttendanceService extends BaseService
 
     public function isPastCheckInDeadline(): bool
     {
-        return Carbon::now()->hour >= 9;
+        $hour = Carbon::now()->hour;
+        return $hour >= 10;
     }
 
     public function withEmployee()
@@ -46,8 +47,24 @@ class AttendanceService extends BaseService
         return $this->attendanceRepository->getByDateRange($start, $end);
     }
 
-    public function checkIn(array $data, $user): Attendance
+    public function checkIn(array $data, $user)
     {
+        $now = Carbon::now();
+
+        if ($now->hour >= 10) {
+            return [
+                'success' => false,
+                'message' => 'Batas check-in sudah lewat (10:00). Silakan lakukan check-in pada hari berikutnya.',
+            ];
+        }
+
+        if ($now->hour < 5) {
+            return [
+                'success' => false,
+                'message' => 'Waktu check-in belum dimulai (mulai pukul 05:00).',
+            ];
+        }
+
         return DB::transaction(function () use ($data, $user) {
             $employee = $user->employee;
 
