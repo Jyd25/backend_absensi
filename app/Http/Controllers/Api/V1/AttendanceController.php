@@ -88,7 +88,8 @@ class AttendanceController extends Controller
 
         $attendance = $this->attendanceService->checkOut(
             $attendance->id,
-            $user
+            $user,
+            $request->validated()
         );
 
         return $this->successResponse(

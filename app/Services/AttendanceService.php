@@ -95,10 +95,12 @@ class AttendanceService extends BaseService
                 'distance' => $distance,
                 'location_status' => $locationStatus,
                 'attendance_status' => $attendanceStatus,
+                'face_score' => $data['face_score'] ?? null,
+                'face_status' => $data['face_status'] ?? null,
+                'photo_data' => $data['photo_data'] ?? null,
                 'device' => $data['device'] ?? null,
                 'ip_address' => request()->ip(),
                 'remarks' => $data['remarks'] ?? null,
-                'photo_path' => $data['photo'] ?? null,
             ]);
 
             AttendanceHistory::create([
@@ -115,13 +117,16 @@ class AttendanceService extends BaseService
         });
     }
 
-    public function checkOut($attendanceId, $user): Attendance
+    public function checkOut($attendanceId, $user, array $data = []): Attendance
     {
-        return DB::transaction(function () use ($attendanceId, $user) {
+        return DB::transaction(function () use ($attendanceId, $user, $data) {
             $attendance = Attendance::findOrFail($attendanceId);
 
             $attendance->update([
                 'check_out_time' => now(),
+                'face_score' => $data['face_score'] ?? $attendance->face_score,
+                'face_status' => $data['face_status'] ?? $attendance->face_status,
+                'photo_data' => $data['photo_data'] ?? $attendance->photo_data,
             ]);
 
             $checkIn = Carbon::parse($attendance->check_in_time);

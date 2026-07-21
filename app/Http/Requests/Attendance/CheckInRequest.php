@@ -19,7 +19,9 @@ class CheckInRequest extends FormRequest
             'location_id' => 'required|exists:attendance_locations,id',
             'device' => 'nullable|string',
             'remarks' => 'nullable|string',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'face_score' => 'nullable|numeric|min:0|max:100',
+            'face_status' => 'nullable|string|in:matched,unmatched',
+            'photo_data' => 'nullable|string',
         ];
     }
 }

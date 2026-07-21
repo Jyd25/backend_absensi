@@ -34,6 +34,7 @@ class Attendance extends Model
         'ip_address',
         'remarks',
         'photo_path',
+        'photo_data',
     ];
 
     protected $casts = [

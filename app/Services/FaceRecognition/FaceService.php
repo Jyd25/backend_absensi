@@ -47,12 +47,11 @@ class FaceService
         $employeeId = $data['employee_id'];
         $threshold = $data['threshold'] ?? 0.50;
 
-        $primaryDescriptor = FaceDataset::where('employee_id', $employeeId)
-            ->where('is_primary', true)
+        $faceDatasets = FaceDataset::where('employee_id', $employeeId)
             ->whereNotNull('descriptor_path')
-            ->first();
+            ->get();
 
-        if (!$primaryDescriptor) {
+        if ($faceDatasets->isEmpty()) {
             return [
                 'matched' => true,
                 'message' => 'Data wajah belum terdaftar, verifikasi dilewati',
@@ -61,20 +60,7 @@ class FaceService
             ];
         }
 
-        $storedDescriptor = json_decode($primaryDescriptor->descriptor_path, true);
-
-        if (!is_array($storedDescriptor) || count($storedDescriptor) < 128) {
-            return [
-                'matched' => false,
-                'message' => 'Data descriptor wajah tidak valid atau belum terdaftar',
-                'score' => 0,
-                'distance' => 0,
-                'threshold' => $threshold,
-            ];
-        }
-
         $inputDescriptor = $data['descriptor'];
-
         if (!is_array($inputDescriptor) || count($inputDescriptor) < 128) {
             return [
                 'matched' => false,
@@ -85,23 +71,38 @@ class FaceService
             ];
         }
 
-        if (count($storedDescriptor) !== count($inputDescriptor)) {
-            return [
-                'matched' => false,
-                'message' => 'Format descriptor tidak cocok',
-                'score' => 0,
-            ];
-        }
+        $bestDistance = PHP_INT_MAX;
+        $bestScore = 0;
+        $matched = false;
 
-        $distance = $this->euclideanDistance($storedDescriptor, $inputDescriptor);
-        $score = max(0, 1 - $distance);
-        $matched = $distance <= $threshold;
+        foreach ($faceDatasets as $dataset) {
+            $storedDescriptor = json_decode($dataset->descriptor_path, true);
+            if (!is_array($storedDescriptor) || count($storedDescriptor) < 128) {
+                continue;
+            }
+            if (count($storedDescriptor) !== count($inputDescriptor)) {
+                continue;
+            }
+
+            $distance = $this->euclideanDistance($storedDescriptor, $inputDescriptor);
+            $score = max(0, 1 - $distance);
+
+            if ($distance < $bestDistance) {
+                $bestDistance = $distance;
+                $bestScore = $score;
+            }
+
+            if ($distance <= $threshold) {
+                $matched = true;
+                break;
+            }
+        }
 
         return [
             'matched' => $matched,
             'message' => $matched ? 'Wajah cocok' : 'Wajah tidak cocok',
-            'score' => round($score * 100, 2),
-            'distance' => round($distance, 6),
+            'score' => round($bestScore * 100, 2),
+            'distance' => round($bestDistance, 6),
             'threshold' => $threshold,
         ];
     }
