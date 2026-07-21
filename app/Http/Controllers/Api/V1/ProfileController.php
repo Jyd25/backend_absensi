@@ -42,9 +42,12 @@ class ProfileController extends Controller
             if ($user->employee_id) {
                 $employeeData = array_intersect_key($validated, array_flip(['phone', 'address', 'birth_place', 'birth_date', 'photo']));
                 if (!empty($employeeData)) {
-                    if (isset($employeeData['photo']) && $request->hasFile('photo')) {
-                        $employeeData['photo'] = $request->file('photo')->store('profiles', 'cloudinary');
-                    }
+                if (isset($employeeData['photo']) && $request->hasFile('photo')) {
+                    $binary = file_get_contents($request->file('photo')->getRealPath());
+                    $mimeType = $request->file('photo')->getMimeType();
+                    $employeeData['photo_data'] = 'data:' . $mimeType . ';base64,' . base64_encode($binary);
+                    $employeeData['photo'] = $employeeData['photo_data'];
+                }
                     Employee::where('id', $user->employee_id)->update($employeeData);
                 }
             }

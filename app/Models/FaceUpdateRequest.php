@@ -14,6 +14,7 @@ class FaceUpdateRequest extends Model
         'employee_id',
         'descriptor_path',
         'image_path',
+        'image_data',
         'status',
         'admin_note',
         'approved_by',

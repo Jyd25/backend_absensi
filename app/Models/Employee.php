@@ -28,6 +28,7 @@ class Employee extends Model
         'position_id',
         'schedule_id',
         'photo',
+        'photo_data',
         'is_active',
     ];
 

@@ -52,15 +52,18 @@ class FaceUpdateRequestController extends Controller
             }
         }
 
-        $imagePath = null;
+        $imageData = null;
         if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('face-requests', 'cloudinary');
+            $binary = file_get_contents($request->file('image')->getRealPath());
+            $mimeType = $request->file('image')->getMimeType();
+            $imageData = 'data:' . $mimeType . ';base64,' . base64_encode($binary);
         }
 
         $faceRequest = FaceUpdateRequest::create([
             'employee_id' => $user->employee_id,
             'descriptor_path' => $descriptorPath,
-            'image_path' => $imagePath,
+            'image_path' => $imageData,
+            'image_data' => $imageData,
             'status' => 'pending',
         ]);
 
@@ -92,6 +95,7 @@ class FaceUpdateRequestController extends Controller
                 'employee_id' => $faceRequest->employee_id,
                 'descriptor_path' => $faceRequest->descriptor_path,
                 'image_path' => $faceRequest->image_path,
+                'image_data' => $faceRequest->image_data ?? $faceRequest->image_path,
                 'is_primary' => true,
             ]);
         });

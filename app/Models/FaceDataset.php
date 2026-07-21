@@ -13,6 +13,7 @@ class FaceDataset extends Model
     protected $fillable = [
         'employee_id',
         'image_path',
+        'image_data',
         'descriptor_path',
         'is_primary',
     ];

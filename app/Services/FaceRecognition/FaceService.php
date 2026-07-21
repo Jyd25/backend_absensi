@@ -23,14 +23,17 @@ class FaceService
                 return $this->errorResponse('Karyawan sudah memiliki data wajah utama. Gunakan force untuk mengganti.', 422);
             }
 
-            $imagePath = null;
-            if (isset($data['image'])) {
-                $imagePath = $data['image']->store('faces/' . $employee->id, 'cloudinary');
+            $imageData = null;
+            if (isset($data['image']) && $data['image'] instanceof \Illuminate\Http\UploadedFile) {
+                $binary = file_get_contents($data['image']->getRealPath());
+                $mimeType = $data['image']->getMimeType();
+                $imageData = 'data:' . $mimeType . ';base64,' . base64_encode($binary);
             }
 
             $faceDataset = FaceDataset::create([
                 'employee_id' => $employee->id,
-                'image_path' => $imagePath,
+                'image_data' => $imageData,
+                'image_path' => $imageData,
                 'descriptor_path' => isset($data['descriptor']) ? json_encode($data['descriptor']) : null,
                 'is_primary' => !$existing,
             ]);
@@ -143,8 +146,8 @@ class FaceService
                 }
             }
 
-            if ($faceDataset->image_path) {
-                Storage::disk('cloudinary')->delete($faceDataset->image_path);
+            if ($faceDataset->image_path && !str_starts_with($faceDataset->image_path, 'data:')) {
+                Storage::disk('local')->delete($faceDataset->image_path);
             }
 
             $faceDataset->delete();
