@@ -9,12 +9,14 @@ use App\Http\Resources\AttendanceResource;
 use App\Models\Attendance;
 use App\Services\AttendanceService;
 use App\Traits\ApiResponse;
+use App\Traits\SendsNotifications;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, SendsNotifications;
 
     protected AttendanceService $attendanceService;
 
@@ -62,6 +64,28 @@ class AttendanceController extends Controller
             $request->user()
         );
 
+        $employee = $attendance->employee;
+        $employeeName = $employee?->name ?? 'Karyawan';
+        $time = Carbon::parse($attendance->check_in_time)->format('H:i');
+        $statusLabel = $attendance->attendance_status?->label() ?? '-';
+        $locStatus = $attendance->location_status?->label() ?? '-';
+        $faceStatus = $attendance->face_status?->label() ?? '-';
+
+        $this->notifyAdmins(
+            'Check-In Baru',
+            "{$employeeName} telah check-in pukul {$time}. Status: {$statusLabel} | Lokasi: {$locStatus} | Wajah: {$faceStatus}",
+            $attendance->attendance_status?->value === 'late' ? 'warning' : 'success',
+            ['employee_id' => $employee?->id, 'attendance_id' => $attendance->id]
+        );
+
+        $this->notifyUser(
+            $request->user()->id,
+            'Check-In Berhasil',
+            'Check-in Anda pukul ' . $time . ' telah tercatat. Status: ' . $statusLabel,
+            'success',
+            ['attendance_id' => $attendance->id]
+        );
+
         return $this->successResponse(
             new AttendanceResource($attendance),
             'Check-in successful.',
@@ -90,6 +114,26 @@ class AttendanceController extends Controller
             $attendance->id,
             $user,
             $request->validated()
+        );
+
+        $employee = $attendance->employee;
+        $employeeName = $employee?->name ?? 'Karyawan';
+        $time = Carbon::parse($attendance->check_out_time)->format('H:i');
+        $workDuration = $attendance->work_duration ?? '-';
+
+        $this->notifyAdmins(
+            'Check-Out Selesai',
+            "{$employeeName} telah check-out pukul {$time}. Durasi kerja: {$workDuration}",
+            'info',
+            ['employee_id' => $employee?->id, 'attendance_id' => $attendance->id]
+        );
+
+        $this->notifyUser(
+            $user->id,
+            'Check-Out Berhasil',
+            'Check-out Anda pukul ' . $time . ' telah tercatat. Durasi kerja: ' . $workDuration,
+            'success',
+            ['attendance_id' => $attendance->id]
         );
 
         return $this->successResponse(

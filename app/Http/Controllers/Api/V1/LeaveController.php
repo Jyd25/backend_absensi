@@ -108,7 +108,7 @@ class LeaveController extends Controller
 
         $this->notifyAdmins(
             'Izin Disetujui',
-            "Izin {$employee->name ?? 'karyawan'} disetujui oleh {$request->user()->name}",
+            "Izin " . ($employee->name ?? 'karyawan') . " disetujui oleh {$request->user()->name}",
             'success',
             ['leave_id' => $leave->id, 'action' => 'approved']
         );
