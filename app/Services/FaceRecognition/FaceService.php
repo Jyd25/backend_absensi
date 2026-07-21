@@ -19,7 +19,7 @@ class FaceService
 
             $existing = FaceDataset::where('employee_id', $employee->id)->where('is_primary', true)->first();
 
-            if ($existing && !isset($data['force'])) {
+            if ($existing && !$this->isTruthy($data['force'] ?? null)) {
                 return $this->errorResponse('Karyawan sudah memiliki data wajah utama. Gunakan force untuk mengganti.', 422);
             }
 
@@ -105,6 +105,11 @@ class FaceService
             'distance' => round($bestDistance, 6),
             'threshold' => $threshold,
         ];
+    }
+
+    public function isTruthy($value): bool
+    {
+        return in_array(strtolower((string) $value), ['1', 'true', 'yes'], true);
     }
 
     public function euclideanDistance(array $a, array $b): float

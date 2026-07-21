@@ -17,7 +17,7 @@ class RegisterFaceRequest extends FormRequest
             'employee_id' => 'required|exists:employees,id',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'descriptor' => 'required|string',
-            'force' => 'sometimes|boolean',
+            'force' => 'sometimes',
         ];
     }
 
