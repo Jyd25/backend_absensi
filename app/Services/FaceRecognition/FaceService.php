@@ -34,7 +34,7 @@ class FaceService
                 'employee_id' => $employee->id,
                 'image_data' => $imageData,
                 'image_path' => $imageData,
-                'descriptor_path' => isset($data['descriptor']) ? json_encode($data['descriptor']) : null,
+                'descriptor_path' => is_array($data['descriptor']) ? json_encode($data['descriptor']) : $data['descriptor'],
                 'is_primary' => !$existing,
             ]);
 

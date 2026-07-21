@@ -31,6 +31,7 @@ class ProfileController extends Controller
             'birth_place' => 'nullable|string|max:255',
             'birth_date' => 'nullable|date',
             'photo' => 'nullable|image|max:2048',
+            'photo_data' => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($user, $validated, &$result) {
@@ -40,14 +41,17 @@ class ProfileController extends Controller
             }
 
             if ($user->employee_id) {
-                $employeeData = array_intersect_key($validated, array_flip(['phone', 'address', 'birth_place', 'birth_date', 'photo']));
-                if (!empty($employeeData)) {
+                $employeeData = array_intersect_key($validated, array_flip(['phone', 'address', 'birth_place', 'birth_date', 'photo', 'photo_data']));
+
                 if (isset($employeeData['photo']) && $request->hasFile('photo')) {
                     $binary = file_get_contents($request->file('photo')->getRealPath());
                     $mimeType = $request->file('photo')->getMimeType();
-                    $employeeData['photo_data'] = 'data:' . $mimeType . ';base64,' . base64_encode($binary);
-                    $employeeData['photo'] = $employeeData['photo_data'];
+                    $base64 = 'data:' . $mimeType . ';base64,' . base64_encode($binary);
+                    $employeeData['photo_data'] = $base64;
+                    $employeeData['photo'] = $base64;
                 }
+
+                if (!empty($employeeData)) {
                     Employee::where('id', $user->employee_id)->update($employeeData);
                 }
             }
