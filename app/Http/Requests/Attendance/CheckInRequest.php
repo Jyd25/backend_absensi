@@ -16,7 +16,7 @@ class CheckInRequest extends FormRequest
         return [
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
-            'location_id' => 'required|exists:attendance_locations,id',
+            'location_id' => 'nullable|exists:attendance_locations,id',
             'device' => 'nullable|string',
             'remarks' => 'nullable|string',
             'face_score' => 'nullable|numeric|min:0|max:100',

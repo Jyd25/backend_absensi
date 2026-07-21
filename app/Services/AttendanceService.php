@@ -50,7 +50,17 @@ class AttendanceService extends BaseService
     {
         return DB::transaction(function () use ($data, $user) {
             $employee = $user->employee;
-            $location = AttendanceLocation::findOrFail($data['location_id']);
+
+            if (!empty($data['location_id'])) {
+                $location = AttendanceLocation::findOrFail($data['location_id']);
+            } else {
+                $location = AttendanceLocation::where('is_active', true)
+                    ->orderByRaw("( POW(latitude - ?, 2) + POW(longitude - ?, 2) )", [$data['latitude'], $data['longitude']])
+                    ->first();
+                if (!$location) {
+                    $location = AttendanceLocation::where('is_active', true)->firstOrFail();
+                }
+            }
 
             $distance = $this->calculateDistance(
                 $data['latitude'], $data['longitude'],
