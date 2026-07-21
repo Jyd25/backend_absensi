@@ -51,9 +51,10 @@ class FaceService
 
         if (!$primaryDescriptor) {
             return [
-                'matched' => false,
-                'message' => 'Data wajah karyawan tidak ditemukan',
+                'matched' => true,
+                'message' => 'Data wajah belum terdaftar, verifikasi dilewati',
                 'score' => 0,
+                'no_face_data' => true,
             ];
         }
 
