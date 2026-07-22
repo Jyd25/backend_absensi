@@ -47,7 +47,19 @@ class AttendanceController extends Controller
         }
 
         if ($request->has('date')) {
-            $query->whereDate('check_in_time', $request->date);
+            $query->where(function ($q) use ($request) {
+                $q->whereDate('check_in_time', $request->date)
+                    ->orWhereDate('check_out_time', $request->date);
+            });
+        } elseif ($request->has('month') && $request->has('year')) {
+            $month = (int) $request->month;
+            $year = (int) $request->year;
+            $start = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $end = $start->copy()->endOfMonth();
+            $query->where(function ($q) use ($start, $end) {
+                $q->whereBetween('check_in_time', [$start, $end])
+                    ->orWhereBetween('check_out_time', [$start, $end]);
+            });
         }
 
         if ($request->has('status')) {
