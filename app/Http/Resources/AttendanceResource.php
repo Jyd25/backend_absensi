@@ -20,6 +20,7 @@ class AttendanceResource extends JsonResource
                     'latitude' => $this->location->latitude,
                     'longitude' => $this->location->longitude,
                     'radius' => $this->location->radius,
+                    'address' => $this->location->address,
                 ];
             }),
             'schedule' => $this->whenLoaded('schedule', function () {
