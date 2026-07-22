@@ -27,16 +27,23 @@ class AttendanceController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $roleName = $user->role?->name;
+
         $query = Attendance::with(['employee', 'location', 'schedule']);
 
-        if ($request->has('employee_id')) {
-            $query->where('employee_id', $request->employee_id);
-        }
+        if (in_array($roleName, ['Guru', 'Karyawan'])) {
+            $query->where('employee_id', $user->employee_id);
+        } else {
+            if ($request->has('employee_id')) {
+                $query->where('employee_id', $request->employee_id);
+            }
 
-        if ($request->has('department_id')) {
-            $query->whereHas('employee', function ($q) use ($request) {
-                $q->where('department_id', $request->department_id);
-            });
+            if ($request->has('department_id')) {
+                $query->whereHas('employee', function ($q) use ($request) {
+                    $q->where('department_id', $request->department_id);
+                });
+            }
         }
 
         if ($request->has('date')) {
@@ -160,8 +167,15 @@ class AttendanceController extends Controller
         );
     }
 
-    public function show(Attendance $attendance): JsonResponse
+    public function show(Request $request, Attendance $attendance): JsonResponse
     {
+        $user = $request->user();
+        $roleName = $user->role?->name;
+
+        if (in_array($roleName, ['Guru', 'Karyawan']) && $attendance->employee_id !== $user->employee_id) {
+            return $this->errorResponse('Tidak memiliki akses.', 403);
+        }
+
         $attendance->load(['employee', 'location', 'schedule']);
 
         return $this->successResponse(

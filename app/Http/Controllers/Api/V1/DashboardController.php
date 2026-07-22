@@ -22,10 +22,11 @@ class DashboardController extends Controller
         $user = $request->user();
         $today = Carbon::today();
         $roleName = $user->role?->name;
+        $isAdminOrPimpinan = in_array($roleName, ['Administrator', 'Pimpinan']);
 
         $query = Employee::active();
 
-        if (!$user->isAdmin) {
+        if (!$isAdminOrPimpinan) {
             $query->where('id', $user->employee_id);
         }
 
@@ -34,7 +35,7 @@ class DashboardController extends Controller
         $attendanceQuery = DB::table('attendances')
             ->whereDate('check_in_time', $today);
 
-        if (!$user->isAdmin) {
+        if (!$isAdminOrPimpinan) {
             $attendanceQuery->where('employee_id', $user->employee_id);
         }
 
@@ -172,6 +173,7 @@ class DashboardController extends Controller
     public function weekly(Request $request): JsonResponse
     {
         $user = $request->user();
+        $isAdminOrPimpinan = in_array($user->role?->name, ['Administrator', 'Pimpinan']);
         $startDate = Carbon::now()->subDays(6)->startOfDay();
         $endDate = Carbon::now()->endOfDay();
 
@@ -180,7 +182,7 @@ class DashboardController extends Controller
             $dayQuery = DB::table('attendances')
                 ->whereDate('check_in_time', $date);
 
-            if (!$user->isAdmin) {
+            if (!$isAdminOrPimpinan) {
                 $dayQuery->where('employee_id', $user->employee_id);
             }
 
@@ -199,6 +201,7 @@ class DashboardController extends Controller
     public function monthly(Request $request): JsonResponse
     {
         $user = $request->user();
+        $isAdminOrPimpinan = in_array($user->role?->name, ['Administrator', 'Pimpinan']);
         $year = $request->get('year', Carbon::now()->year);
         $month = $request->get('month', Carbon::now()->month);
 
@@ -208,7 +211,7 @@ class DashboardController extends Controller
         $attendanceQuery = DB::table('attendances')
             ->whereBetween('check_in_time', [$startDate, $endDate]);
 
-        if (!$user->isAdmin) {
+        if (!$isAdminOrPimpinan) {
             $attendanceQuery->where('employee_id', $user->employee_id);
         }
 
@@ -220,11 +223,7 @@ class DashboardController extends Controller
         $absent = (clone $attendanceQuery)->where('attendance_status', AttendanceStatus::Absent->value)->count();
 
         $daysInMonth = $startDate->daysInMonth;
-        $totalEmployees = Employee::active()->count();
-
-        if (!$user->isAdmin) {
-            $totalEmployees = 1;
-        }
+        $totalEmployees = $isAdminOrPimpinan ? Employee::active()->count() : 1;
 
         $totalExpected = $totalEmployees * $daysInMonth;
         $totalActual = $present + $late;
