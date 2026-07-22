@@ -33,7 +33,7 @@ class FaceService
             $faceDataset = FaceDataset::create([
                 'employee_id' => $employee->id,
                 'image_data' => $imageData,
-                'image_path' => $imageData,
+                'image_path' => null,
                 'descriptor_path' => is_array($data['descriptor']) ? json_encode($data['descriptor']) : $data['descriptor'],
                 'is_primary' => !$existing,
             ]);

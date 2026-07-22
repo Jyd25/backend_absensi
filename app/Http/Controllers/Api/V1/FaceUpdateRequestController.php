@@ -62,7 +62,7 @@ class FaceUpdateRequestController extends Controller
         $faceRequest = FaceUpdateRequest::create([
             'employee_id' => $user->employee_id,
             'descriptor_path' => $descriptorPath,
-            'image_path' => $imageData,
+            'image_path' => null,
             'image_data' => $imageData,
             'status' => 'pending',
         ]);
@@ -94,8 +94,8 @@ class FaceUpdateRequestController extends Controller
             FaceDataset::create([
                 'employee_id' => $faceRequest->employee_id,
                 'descriptor_path' => $faceRequest->descriptor_path,
-                'image_path' => $faceRequest->image_path,
-                'image_data' => $faceRequest->image_data ?? $faceRequest->image_path,
+                'image_path' => null,
+                'image_data' => $faceRequest->image_data,
                 'is_primary' => true,
             ]);
         });

@@ -163,9 +163,12 @@ class AttendanceService extends BaseService
                 'photo_data' => $data['photo_data'] ?? $attendance->photo_data,
             ]);
 
-            $checkIn = Carbon::parse($attendance->check_in_time);
-            $checkOut = Carbon::now();
-            $workMinutes = $checkIn->diffInMinutes($checkOut);
+            $workMinutes = 0;
+            if ($attendance->check_in_time) {
+                $checkIn = Carbon::parse($attendance->check_in_time);
+                $checkOut = Carbon::now();
+                $workMinutes = $checkIn->diffInMinutes($checkOut);
+            }
 
             AttendanceHistory::create([
                 'attendance_id' => $attendance->id,
