@@ -22,6 +22,7 @@ class CheckInRequest extends FormRequest
             'face_score' => 'nullable|numeric|min:0|max:100',
             'face_status' => 'nullable|string|in:matched,unmatched',
             'photo_data' => 'nullable|string',
+            'address' => 'nullable|string',
         ];
     }
 }

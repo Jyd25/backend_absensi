@@ -51,13 +51,6 @@ class AttendanceService extends BaseService
     {
         $now = Carbon::now();
 
-        if ($now->hour < 5) {
-            return [
-                'success' => false,
-                'message' => 'Waktu check-in belum dimulai (mulai pukul 05:00).',
-            ];
-        }
-
         return DB::transaction(function () use ($data, $user) {
             $employee = $user->employee;
 
@@ -123,6 +116,7 @@ class AttendanceService extends BaseService
                 'photo_data' => $data['photo_data'] ?? null,
                 'device' => $data['device'] ?? null,
                 'ip_address' => request()->ip(),
+                'address' => $data['address'] ?? null,
                 'remarks' => $isLateAutoCheckout
                     ? 'Presensi terlambat — check-in kosong, menunggu disetujui admin.'
                     : ($data['remarks'] ?? null),
