@@ -14,7 +14,10 @@ class AttendanceRepository extends BaseRepository
     public function getTodayByEmployee($employeeId)
     {
         return $this->model->where('employee_id', $employeeId)
-            ->whereDate('check_in_time', today())
+            ->where(function ($query) {
+                $query->whereDate('check_in_time', today())
+                    ->orWhereDate('check_out_time', today());
+            })
             ->latest('check_in_time')
             ->first();
     }

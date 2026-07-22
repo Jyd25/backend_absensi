@@ -16,6 +16,8 @@ class CheckOutRequest extends FormRequest
         return [
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
+            'location_id' => 'nullable|exists:attendance_locations,id',
+            'address' => 'nullable|string',
             'remarks' => 'nullable|string',
             'face_score' => 'nullable|numeric|min:0|max:100',
             'face_status' => 'nullable|string|in:matched,unmatched',

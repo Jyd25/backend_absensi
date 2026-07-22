@@ -49,8 +49,6 @@ class AttendanceService extends BaseService
 
     public function checkIn(array $data, $user)
     {
-        $now = Carbon::now();
-
         return DB::transaction(function () use ($data, $user) {
             $employee = $user->employee;
 
@@ -97,15 +95,13 @@ class AttendanceService extends BaseService
                 }
             }
 
-            $isLateAutoCheckout = $now->hour >= 10;
-
             $attendance = Attendance::create([
                 'employee_id' => $employee->id,
                 'location_id' => $location->id,
                 'schedule_id' => $schedule?->id,
-                'attendance_type' => $isLateAutoCheckout ? AttendanceType::CheckOut : AttendanceType::CheckIn,
-                'check_in_time' => $isLateAutoCheckout ? null : now(),
-                'check_out_time' => $isLateAutoCheckout ? now() : null,
+                'attendance_type' => AttendanceType::CheckIn,
+                'check_in_time' => now(),
+                'check_out_time' => null,
                 'latitude' => $data['latitude'],
                 'longitude' => $data['longitude'],
                 'distance' => $distance,
@@ -117,27 +113,16 @@ class AttendanceService extends BaseService
                 'device' => $data['device'] ?? null,
                 'ip_address' => request()->ip(),
                 'address' => $data['address'] ?? null,
-                'remarks' => $isLateAutoCheckout
-                    ? 'Presensi terlambat — check-in kosong, menunggu disetujui admin.'
-                    : ($data['remarks'] ?? null),
+                'remarks' => $data['remarks'] ?? null,
             ]);
 
-            if ($isLateAutoCheckout) {
-                AttendanceHistory::create([
-                    'attendance_id' => $attendance->id,
-                    'action' => 'check_out',
-                    'performed_by' => $user->id,
-                    'description' => "Presensi terlambat (check-in kosong) at {$location->location_name}. Menunggu penyesuaian check-in oleh admin.",
-                ]);
-            } else {
-                AttendanceHistory::create([
-                    'attendance_id' => $attendance->id,
-                    'action' => 'check_in',
-                    'performed_by' => $user->id,
-                    'description' => "Check-in at {$location->location_name}" .
-                        ($lateMinutes > 0 ? " (Late by {$lateMinutes} minutes)" : ''),
-                ]);
-            }
+            AttendanceHistory::create([
+                'attendance_id' => $attendance->id,
+                'action' => 'check_in',
+                'performed_by' => $user->id,
+                'description' => "Check-in at {$location->location_name}" .
+                    ($lateMinutes > 0 ? " (Late by {$lateMinutes} minutes)" : ''),
+            ]);
 
             $this->createProcessRecords($attendance->id, 'check_in');
 
@@ -148,31 +133,87 @@ class AttendanceService extends BaseService
     public function checkOut($attendanceId, $user, array $data = []): Attendance
     {
         return DB::transaction(function () use ($attendanceId, $user, $data) {
-            $attendance = Attendance::findOrFail($attendanceId);
+            if ($attendanceId) {
+                $attendance = Attendance::findOrFail($attendanceId);
 
-            $attendance->update([
-                'check_out_time' => now(),
-                'face_score' => $data['face_score'] ?? $attendance->face_score,
-                'face_status' => $data['face_status'] ?? $attendance->face_status,
-                'photo_data' => $data['photo_data'] ?? $attendance->photo_data,
-            ]);
+                $attendance->update([
+                    'check_out_time' => now(),
+                    'face_score' => $data['face_score'] ?? $attendance->face_score,
+                    'face_status' => $data['face_status'] ?? $attendance->face_status,
+                    'photo_data' => $data['photo_data'] ?? $attendance->photo_data,
+                ]);
 
-            $workMinutes = 0;
-            if ($attendance->check_in_time) {
-                $checkIn = Carbon::parse($attendance->check_in_time);
-                $checkOut = Carbon::now();
-                $workMinutes = $checkIn->diffInMinutes($checkOut);
+                $workMinutes = 0;
+                if ($attendance->check_in_time) {
+                    $checkIn = Carbon::parse($attendance->check_in_time);
+                    $checkOut = Carbon::now();
+                    $workMinutes = $checkIn->diffInMinutes($checkOut);
+                }
+
+                AttendanceHistory::create([
+                    'attendance_id' => $attendance->id,
+                    'action' => 'check_out',
+                    'performed_by' => $user->id,
+                    'description' => 'Check-out completed. Work duration: ' .
+                        sprintf('%dh %dm', floor($workMinutes / 60), $workMinutes % 60),
+                ]);
+
+                $this->createProcessRecords($attendance->id, 'check_out');
+            } else {
+                $employee = $user->employee;
+
+                if (!empty($data['location_id'])) {
+                    $location = AttendanceLocation::findOrFail($data['location_id']);
+                } else {
+                    $location = AttendanceLocation::where('is_active', true)
+                        ->orderByRaw("( POW(latitude - ?, 2) + POW(longitude - ?, 2) )", [$data['latitude'] ?? 0, $data['longitude'] ?? 0])
+                        ->first();
+                    if (!$location) {
+                        $location = AttendanceLocation::where('is_active', true)->firstOrFail();
+                    }
+                }
+
+                $distance = 0;
+                if (!empty($data['latitude']) && !empty($data['longitude'])) {
+                    $distance = $this->calculateDistance(
+                        $data['latitude'], $data['longitude'],
+                        $location->latitude, $location->longitude
+                    );
+                }
+
+                $locationStatus = $distance <= $location->radius
+                    ? LocationStatus::InsideRadius
+                    : LocationStatus::OutsideRadius;
+
+                $attendance = Attendance::create([
+                    'employee_id' => $employee->id,
+                    'location_id' => $location->id,
+                    'schedule_id' => $employee->schedule?->id,
+                    'attendance_type' => AttendanceType::CheckOut,
+                    'check_in_time' => null,
+                    'check_out_time' => now(),
+                    'latitude' => $data['latitude'] ?? null,
+                    'longitude' => $data['longitude'] ?? null,
+                    'distance' => $distance,
+                    'location_status' => $locationStatus,
+                    'attendance_status' => AttendanceStatus::Late,
+                    'face_score' => $data['face_score'] ?? null,
+                    'face_status' => $data['face_status'] ?? null,
+                    'photo_data' => $data['photo_data'] ?? null,
+                    'ip_address' => request()->ip(),
+                    'address' => $data['address'] ?? null,
+                    'remarks' => 'Presensi terlambat — check-in kosong, menunggu disetujui admin.',
+                ]);
+
+                AttendanceHistory::create([
+                    'attendance_id' => $attendance->id,
+                    'action' => 'check_out',
+                    'performed_by' => $user->id,
+                    'description' => "Presensi terlambat (check-in kosong) at {$location->location_name}. Menunggu penyesuaian check-in oleh admin.",
+                ]);
+
+                $this->createProcessRecords($attendance->id, 'check_out');
             }
-
-            AttendanceHistory::create([
-                'attendance_id' => $attendance->id,
-                'action' => 'check_out',
-                'performed_by' => $user->id,
-                'description' => 'Check-out completed. Work duration: ' .
-                    sprintf('%dh %dm', floor($workMinutes / 60), $workMinutes % 60),
-            ]);
-
-            $this->createProcessRecords($attendance->id, 'check_out');
 
             return $attendance->load(['employee', 'location', 'schedule']);
         });

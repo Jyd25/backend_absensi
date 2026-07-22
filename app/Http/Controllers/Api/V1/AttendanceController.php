@@ -97,37 +97,29 @@ class AttendanceController extends Controller
 
         $employee = $attendance->employee;
         $employeeName = $employee?->name ?? 'Karyawan';
-        $time = $attendance->check_in_time
-            ? Carbon::parse($attendance->check_in_time)->format('H:i')
-            : Carbon::parse($attendance->check_out_time)->format('H:i');
+        $time = Carbon::parse($attendance->check_in_time)->format('H:i');
         $statusLabel = $attendance->attendance_status?->label() ?? '-';
         $locStatus = $attendance->location_status?->label() ?? '-';
         $faceStatus = $attendance->face_status?->label() ?? '-';
 
-        $isLate = $attendance->attendance_status?->value === 'late' && !$attendance->check_in_time;
-
         $this->notifyAdmins(
-            $isLate ? 'Presensi Terlambat' : 'Check-In Baru',
-            $isLate
-                ? "{$employeeName} presensi terlambat pukul {$time}. Check-in kosong — menunggu disetujui admin. Status: {$statusLabel} | Lokasi: {$locStatus}"
-                : "{$employeeName} telah check-in pukul {$time}. Status: {$statusLabel} | Lokasi: {$locStatus} | Wajah: {$faceStatus}",
-            $isLate ? 'warning' : ($attendance->attendance_status?->value === 'late' ? 'warning' : 'success'),
+            'Check-In Baru',
+            "{$employeeName} telah check-in pukul {$time}. Status: {$statusLabel} | Lokasi: {$locStatus} | Wajah: {$faceStatus}",
+            $attendance->attendance_status?->value === 'late' ? 'warning' : 'success',
             ['employee_id' => $employee?->id, 'attendance_id' => $attendance->id]
         );
 
         $this->notifyUser(
             $request->user()->id,
-            $isLate ? 'Presensi Terlambat' : 'Check-In Berhasil',
-            $isLate
-                ? 'Presensi terlambat Anda pukul ' . $time . ' telah tercatat. Check-in kosong, menunggu penyesuaian oleh admin. Status: ' . $statusLabel
-                : 'Check-in Anda pukul ' . $time . ' telah tercatat. Status: ' . $statusLabel,
-            $isLate ? 'warning' : 'success',
+            'Check-In Berhasil',
+            'Check-in Anda pukul ' . $time . ' telah tercatat. Status: ' . $statusLabel,
+            'success',
             ['attendance_id' => $attendance->id]
         );
 
         return $this->successResponse(
             new AttendanceResource($attendance),
-            $isLate ? 'Presensi terlambat berhasil. Check-in kosong, menunggu penyesuaian admin.' : 'Check-in successful.',
+            'Check-in successful.',
             201
         );
     }
@@ -142,13 +134,10 @@ class AttendanceController extends Controller
         }
 
         $attendance = $this->attendanceService->getTodayByEmployee($employeeId);
-
-        if (!$attendance) {
-            return $this->errorResponse('Belum ada data check-in hari ini.', 404);
-        }
+        $attendanceId = $attendance?->id;
 
         $attendance = $this->attendanceService->checkOut(
-            $attendance->id,
+            $attendanceId,
             $user,
             $request->validated()
         );
@@ -157,25 +146,30 @@ class AttendanceController extends Controller
         $employeeName = $employee?->name ?? 'Karyawan';
         $time = Carbon::parse($attendance->check_out_time)->format('H:i');
         $workDuration = $attendance->work_duration ?? '-';
+        $isLate = !$attendance->check_in_time;
 
         $this->notifyAdmins(
-            'Check-Out Selesai',
-            "{$employeeName} telah check-out pukul {$time}. Durasi kerja: {$workDuration}",
-            'info',
+            $isLate ? 'Presensi Terlambat' : 'Check-Out Selesai',
+            $isLate
+                ? "{$employeeName} presensi terlambat pukul {$time}. Check-in kosong — menunggu disetujui admin."
+                : "{$employeeName} telah check-out pukul {$time}. Durasi kerja: {$workDuration}",
+            $isLate ? 'warning' : 'info',
             ['employee_id' => $employee?->id, 'attendance_id' => $attendance->id]
         );
 
         $this->notifyUser(
             $user->id,
-            'Check-Out Berhasil',
-            'Check-out Anda pukul ' . $time . ' telah tercatat. Durasi kerja: ' . $workDuration,
-            'success',
+            $isLate ? 'Presensi Terlambat' : 'Check-Out Berhasil',
+            $isLate
+                ? 'Presensi terlambat Anda pukul ' . $time . ' telah tercatat. Check-in kosong, menunggu penyesuaian oleh admin.'
+                : 'Check-out Anda pukul ' . $time . ' telah tercatat. Durasi kerja: ' . $workDuration,
+            $isLate ? 'warning' : 'success',
             ['attendance_id' => $attendance->id]
         );
 
         return $this->successResponse(
             new AttendanceResource($attendance),
-            'Check-out successful.'
+            $isLate ? 'Presensi terlambat berhasil.' : 'Check-out successful.'
         );
     }
 
