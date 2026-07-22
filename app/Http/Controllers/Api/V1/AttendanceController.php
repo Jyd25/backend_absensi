@@ -56,6 +56,14 @@ class AttendanceController extends Controller
     public function store(CheckInRequest $request): JsonResponse
     {
         $user = $request->user();
+        $employeeId = $user->employee_id;
+
+        if ($employeeId) {
+            $existingToday = $this->attendanceService->getTodayByEmployee($employeeId);
+            if ($existingToday) {
+                return $this->errorResponse('Anda sudah melakukan presensi hari ini.', 422);
+            }
+        }
 
         $result = $this->attendanceService->checkIn(
             $request->validated(),
@@ -70,29 +78,37 @@ class AttendanceController extends Controller
 
         $employee = $attendance->employee;
         $employeeName = $employee?->name ?? 'Karyawan';
-        $time = Carbon::parse($attendance->check_in_time)->format('H:i');
+        $time = $attendance->check_in_time
+            ? Carbon::parse($attendance->check_in_time)->format('H:i')
+            : Carbon::parse($attendance->check_out_time)->format('H:i');
         $statusLabel = $attendance->attendance_status?->label() ?? '-';
         $locStatus = $attendance->location_status?->label() ?? '-';
         $faceStatus = $attendance->face_status?->label() ?? '-';
 
+        $isLate = $attendance->attendance_status?->value === 'late' && !$attendance->check_in_time;
+
         $this->notifyAdmins(
-            'Check-In Baru',
-            "{$employeeName} telah check-in pukul {$time}. Status: {$statusLabel} | Lokasi: {$locStatus} | Wajah: {$faceStatus}",
-            $attendance->attendance_status?->value === 'late' ? 'warning' : 'success',
+            $isLate ? 'Presensi Terlambat' : 'Check-In Baru',
+            $isLate
+                ? "{$employeeName} presensi terlambat pukul {$time}. Check-in kosong — menunggu disetujui admin. Status: {$statusLabel} | Lokasi: {$locStatus}"
+                : "{$employeeName} telah check-in pukul {$time}. Status: {$statusLabel} | Lokasi: {$locStatus} | Wajah: {$faceStatus}",
+            $isLate ? 'warning' : ($attendance->attendance_status?->value === 'late' ? 'warning' : 'success'),
             ['employee_id' => $employee?->id, 'attendance_id' => $attendance->id]
         );
 
         $this->notifyUser(
             $request->user()->id,
-            'Check-In Berhasil',
-            'Check-in Anda pukul ' . $time . ' telah tercatat. Status: ' . $statusLabel,
-            'success',
+            $isLate ? 'Presensi Terlambat' : 'Check-In Berhasil',
+            $isLate
+                ? 'Presensi terlambat Anda pukul ' . $time . ' telah tercatat. Check-in kosong, menunggu penyesuaian oleh admin. Status: ' . $statusLabel
+                : 'Check-in Anda pukul ' . $time . ' telah tercatat. Status: ' . $statusLabel,
+            $isLate ? 'warning' : 'success',
             ['attendance_id' => $attendance->id]
         );
 
         return $this->successResponse(
             new AttendanceResource($attendance),
-            'Check-in successful.',
+            $isLate ? 'Presensi terlambat berhasil. Check-in kosong, menunggu penyesuaian admin.' : 'Check-in successful.',
             201
         );
     }

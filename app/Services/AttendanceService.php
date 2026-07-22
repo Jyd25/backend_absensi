@@ -104,12 +104,15 @@ class AttendanceService extends BaseService
                 }
             }
 
+            $isLateAutoCheckout = $now->hour >= 10;
+
             $attendance = Attendance::create([
                 'employee_id' => $employee->id,
                 'location_id' => $location->id,
                 'schedule_id' => $schedule?->id,
-                'attendance_type' => AttendanceType::CheckIn,
-                'check_in_time' => now(),
+                'attendance_type' => $isLateAutoCheckout ? AttendanceType::CheckOut : AttendanceType::CheckIn,
+                'check_in_time' => $isLateAutoCheckout ? null : now(),
+                'check_out_time' => $isLateAutoCheckout ? now() : null,
                 'latitude' => $data['latitude'],
                 'longitude' => $data['longitude'],
                 'distance' => $distance,
@@ -120,29 +123,17 @@ class AttendanceService extends BaseService
                 'photo_data' => $data['photo_data'] ?? null,
                 'device' => $data['device'] ?? null,
                 'ip_address' => request()->ip(),
-                'remarks' => $data['remarks'] ?? null,
+                'remarks' => $isLateAutoCheckout
+                    ? 'Presensi terlambat — check-in kosong, menunggu disetujui admin.'
+                    : ($data['remarks'] ?? null),
             ]);
 
-            $isLateAutoCheckout = $now->hour >= 10;
-
             if ($isLateAutoCheckout) {
-                $attendance->update([
-                    'check_out_time' => now(),
-                ]);
-
-                AttendanceHistory::create([
-                    'attendance_id' => $attendance->id,
-                    'action' => 'check_in',
-                    'performed_by' => $user->id,
-                    'description' => "Check-in terlambat (auto check-out) at {$location->location_name}" .
-                        ($lateMinutes > 0 ? " (Late by {$lateMinutes} minutes)" : ''),
-                ]);
-
                 AttendanceHistory::create([
                     'attendance_id' => $attendance->id,
                     'action' => 'check_out',
                     'performed_by' => $user->id,
-                    'description' => 'Auto check-out due to late arrival.',
+                    'description' => "Presensi terlambat (check-in kosong) at {$location->location_name}. Menunggu penyesuaian check-in oleh admin.",
                 ]);
             } else {
                 AttendanceHistory::create([
