@@ -110,6 +110,7 @@ class AttendanceService extends BaseService
                 'face_score' => $data['face_score'] ?? null,
                 'face_status' => $data['face_status'] ?? null,
                 'photo_data' => $data['photo_data'] ?? null,
+                'checkin_photo_data' => $data['photo_data'] ?? null,
                 'device' => $data['device'] ?? null,
                 'ip_address' => request()->ip(),
                 'address' => $data['address'] ?? null,
@@ -141,6 +142,7 @@ class AttendanceService extends BaseService
                     'face_score' => $data['face_score'] ?? $attendance->face_score,
                     'face_status' => $data['face_status'] ?? $attendance->face_status,
                     'photo_data' => $data['photo_data'] ?? $attendance->photo_data,
+                    'checkout_photo_data' => $data['photo_data'] ?? null,
                 ]);
 
                 $workMinutes = 0;
@@ -200,6 +202,7 @@ class AttendanceService extends BaseService
                     'face_score' => $data['face_score'] ?? null,
                     'face_status' => $data['face_status'] ?? null,
                     'photo_data' => $data['photo_data'] ?? null,
+                    'checkout_photo_data' => $data['photo_data'] ?? null,
                     'ip_address' => request()->ip(),
                     'address' => $data['address'] ?? null,
                     'remarks' => 'Presensi terlambat — check-in kosong, menunggu disetujui admin.',

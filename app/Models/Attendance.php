@@ -35,6 +35,8 @@ class Attendance extends Model
         'remarks',
         'photo_path',
         'photo_data',
+        'checkin_photo_data',
+        'checkout_photo_data',
         'address',
     ];
 
