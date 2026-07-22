@@ -51,13 +51,6 @@ class AttendanceService extends BaseService
     {
         $now = Carbon::now();
 
-        if ($now->hour >= 10) {
-            return [
-                'success' => false,
-                'message' => 'Batas check-in sudah lewat (10:00). Silakan lakukan check-in pada hari berikutnya.',
-            ];
-        }
-
         if ($now->hour < 5) {
             return [
                 'success' => false,
@@ -130,13 +123,36 @@ class AttendanceService extends BaseService
                 'remarks' => $data['remarks'] ?? null,
             ]);
 
-            AttendanceHistory::create([
-                'attendance_id' => $attendance->id,
-                'action' => 'check_in',
-                'performed_by' => $user->id,
-                'description' => "Check-in at {$location->location_name}" .
-                    ($lateMinutes > 0 ? " (Late by {$lateMinutes} minutes)" : ''),
-            ]);
+            $isLateAutoCheckout = $now->hour >= 10;
+
+            if ($isLateAutoCheckout) {
+                $attendance->update([
+                    'check_out_time' => now(),
+                ]);
+
+                AttendanceHistory::create([
+                    'attendance_id' => $attendance->id,
+                    'action' => 'check_in',
+                    'performed_by' => $user->id,
+                    'description' => "Check-in terlambat (auto check-out) at {$location->location_name}" .
+                        ($lateMinutes > 0 ? " (Late by {$lateMinutes} minutes)" : ''),
+                ]);
+
+                AttendanceHistory::create([
+                    'attendance_id' => $attendance->id,
+                    'action' => 'check_out',
+                    'performed_by' => $user->id,
+                    'description' => 'Auto check-out due to late arrival.',
+                ]);
+            } else {
+                AttendanceHistory::create([
+                    'attendance_id' => $attendance->id,
+                    'action' => 'check_in',
+                    'performed_by' => $user->id,
+                    'description' => "Check-in at {$location->location_name}" .
+                        ($lateMinutes > 0 ? " (Late by {$lateMinutes} minutes)" : ''),
+                ]);
+            }
 
             $this->createProcessRecords($attendance->id, 'check_in');
 
