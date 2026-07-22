@@ -73,6 +73,11 @@ class AttendanceCorrectionController extends Controller
 
     public function approve(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user->role?->name !== 'Administrator') {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $correction = AttendanceCorrection::findOrFail($id);
         $request->validate([
             'admin_note' => 'nullable|string',
@@ -130,6 +135,11 @@ class AttendanceCorrectionController extends Controller
 
     public function reject(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user->role?->name !== 'Administrator') {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $correction = AttendanceCorrection::findOrFail($id);
         $request->validate([
             'admin_note' => 'required|string',

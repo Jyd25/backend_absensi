@@ -15,6 +15,11 @@ class ExportController extends Controller
 
     public function attendance(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (in_array($user->role?->name, ['Guru', 'Karyawan'])) {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $request->validate([
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',

@@ -17,6 +17,11 @@ class ReportController extends Controller
 
     public function daily(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (in_array($user->role?->name, ['Guru', 'Karyawan'])) {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $date = $request->get('date', Carbon::today()->format('Y-m-d'));
         $departmentId = $request->get('department_id');
 
@@ -74,6 +79,11 @@ class ReportController extends Controller
 
     public function monthly(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (in_array($user->role?->name, ['Guru', 'Karyawan'])) {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $month = $request->get('month', Carbon::now()->month);
         $year = $request->get('year', Carbon::now()->year);
         $departmentId = $request->get('department_id');
@@ -136,7 +146,13 @@ class ReportController extends Controller
 
     public function employee(Request $request): JsonResponse
     {
+        $user = $request->user();
         $employeeId = $request->get('employee_id');
+
+        if (in_array($user->role?->name, ['Guru', 'Karyawan'])) {
+            $employeeId = $user->employee_id;
+        }
+
         $startDate = $request->get('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->get('end_date', Carbon::now()->format('Y-m-d'));
 
@@ -172,6 +188,11 @@ class ReportController extends Controller
 
     public function department(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (in_array($user->role?->name, ['Guru', 'Karyawan'])) {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $departmentId = $request->get('department_id');
         $month = $request->get('month', Carbon::now()->month);
         $year = $request->get('year', Carbon::now()->year);

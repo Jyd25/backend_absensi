@@ -79,6 +79,11 @@ class FaceUpdateRequestController extends Controller
 
     public function approve(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user->role?->name !== 'Administrator') {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $faceRequest = FaceUpdateRequest::findOrFail($id);
 
         $faceRequest->update([
@@ -119,6 +124,11 @@ class FaceUpdateRequestController extends Controller
 
     public function reject(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user->role?->name !== 'Administrator') {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $faceRequest = FaceUpdateRequest::findOrFail($id);
         $request->validate(['admin_note' => 'required|string']);
 

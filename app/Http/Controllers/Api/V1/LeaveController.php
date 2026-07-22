@@ -81,6 +81,11 @@ class LeaveController extends Controller
 
     public function approve(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user->role?->name !== 'Administrator') {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $leave = LeaveRequest::findOrFail($id);
         $request->validate([
             'admin_note' => 'nullable|string',
@@ -118,6 +123,11 @@ class LeaveController extends Controller
 
     public function reject(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user->role?->name !== 'Administrator') {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         $leave = LeaveRequest::findOrFail($id);
         $request->validate([
             'admin_note' => 'required|string',
@@ -146,9 +156,16 @@ class LeaveController extends Controller
         return $this->successResponse($leave->fresh(['employee', 'approver']), 'Izin ditolak');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $leave = LeaveRequest::findOrFail($id);
+        $user = $request->user();
+        $isAdmin = $user->role?->name === 'Administrator';
+
+        if (!$isAdmin && $leave->employee_id !== $user->employee_id) {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
         if ($leave->status !== 'pending') {
             return $this->errorResponse('Hanya pengajuan pending yang bisa dihapus', 422);
         }
