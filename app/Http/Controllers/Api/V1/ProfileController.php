@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Auth\UserResource;
 use App\Models\Employee;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,9 @@ class ProfileController extends Controller
     public function show(Request $request): JsonResponse
     {
         $user = $request->user()->load(['role', 'employee.department', 'employee.position', 'employee.schedule']);
-        return $this->successResponse($user);
+        return $this->successResponse(
+            new UserResource($user)
+        );
     }
 
     public function update(Request $request): JsonResponse
@@ -34,7 +37,7 @@ class ProfileController extends Controller
             'photo_data' => 'nullable|string',
         ]);
 
-        DB::transaction(function () use ($user, $validated, &$result) {
+        DB::transaction(function () use ($user, $validated, $request) {
             $userData = array_intersect_key($validated, array_flip(['name', 'email']));
             if (!empty($userData)) {
                 $user->update($userData);
@@ -57,8 +60,10 @@ class ProfileController extends Controller
             }
         });
 
+        $freshUser = $user->fresh(['role', 'employee.department', 'employee.position', 'employee.schedule']);
+
         return $this->successResponse(
-            $user->fresh(['role', 'employee.department', 'employee.position', 'employee.schedule']),
+            new UserResource($freshUser),
             'Profil berhasil diperbarui'
         );
     }
