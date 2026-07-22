@@ -212,6 +212,29 @@ class AttendanceController extends Controller
         );
     }
 
+    public function update(Request $request, Attendance $attendance): JsonResponse
+    {
+        $user = $request->user();
+        $roleName = $user->role?->name;
+
+        if ($roleName !== 'Administrator') {
+            return $this->errorResponse('Tidak memiliki akses.', 403);
+        }
+
+        $validated = $request->validate([
+            'check_in_time' => 'nullable|date_format:Y-m-d\TH:i',
+            'check_out_time' => 'nullable|date_format:Y-m-d\TH:i',
+        ]);
+
+        $attendance->update($validated);
+        $attendance->load(['employee', 'location', 'schedule']);
+
+        return $this->successResponse(
+            new AttendanceResource($attendance),
+            'Data kehadiran berhasil diperbarui.'
+        );
+    }
+
     public function history(Request $request): JsonResponse
     {
         $user = $request->user();

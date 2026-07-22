@@ -48,7 +48,23 @@ class FaceController extends Controller
     public function history(Request $request): JsonResponse
     {
         $history = $this->faceService->getHistory($request->employee_id);
-        return $this->paginatedResponse($history, 'Riwayat face dataset berhasil dimuat');
+        $items = FaceDatasetResource::collection($history->getCollection());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Riwayat face dataset berhasil dimuat',
+            'data' => [
+                'items' => $items,
+                'pagination' => [
+                    'total' => $history->total(),
+                    'per_page' => $history->perPage(),
+                    'current_page' => $history->currentPage(),
+                    'last_page' => $history->lastPage(),
+                    'from' => $history->firstItem(),
+                    'to' => $history->lastItem(),
+                ],
+            ],
+        ]);
     }
 
     public function destroy($id, Request $request): JsonResponse

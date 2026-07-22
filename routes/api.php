@@ -38,6 +38,7 @@ Route::prefix('v1')->middleware(['jwt', 'status'])->group(function () {
         Route::get('/today', [AttendanceController::class, 'today']);
         Route::get('/history', [AttendanceController::class, 'history']);
         Route::get('/{attendance}', [AttendanceController::class, 'show']);
+        Route::put('/{attendance}', [AttendanceController::class, 'update']);
         Route::post('/check-in', [AttendanceController::class, 'store']);
         Route::post('/check-out', [AttendanceController::class, 'checkOut']);
     });
