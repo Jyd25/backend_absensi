@@ -139,11 +139,19 @@ class DashboardController extends Controller
 
             if ($employee && $employee->schedule) {
                 if ($isSaturday && $employee->schedule->saturday_start_time) {
-                    $scheduleStart = $employee->schedule->saturday_start_time;
-                    $scheduleEnd = $employee->schedule->saturday_end_time;
+                    $scheduleStart = $employee->schedule->saturday_start_time instanceof \Carbon\Carbon
+                        ? $employee->schedule->saturday_start_time->format('H:i')
+                        : $employee->schedule->saturday_start_time;
+                    $scheduleEnd = $employee->schedule->saturday_end_time instanceof \Carbon\Carbon
+                        ? $employee->schedule->saturday_end_time->format('H:i')
+                        : $employee->schedule->saturday_end_time;
                 } else {
-                    $scheduleStart = $employee->schedule->start_time;
-                    $scheduleEnd = $employee->schedule->end_time;
+                    $scheduleStart = $employee->schedule->start_time instanceof \Carbon\Carbon
+                        ? $employee->schedule->start_time->format('H:i')
+                        : $employee->schedule->start_time;
+                    $scheduleEnd = $employee->schedule->end_time instanceof \Carbon\Carbon
+                        ? $employee->schedule->end_time->format('H:i')
+                        : $employee->schedule->end_time;
                 }
             }
 
