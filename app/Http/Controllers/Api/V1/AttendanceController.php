@@ -39,11 +39,19 @@ class AttendanceController extends Controller
                 $query->where('employee_id', $request->employee_id);
             }
 
-            if ($request->has('department_id')) {
-                $query->whereHas('employee', function ($q) use ($request) {
-                    $q->where('department_id', $request->department_id);
-                });
-            }
+        if ($request->has('department_id')) {
+            $query->whereHas('employee', function ($q) use ($request) {
+                $q->where('department_id', $request->department_id);
+            });
+        }
+
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->whereHas('employee', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('nik', 'like', "%{$search}%");
+            });
+        }
         }
 
         if ($request->has('date')) {
@@ -74,6 +82,18 @@ class AttendanceController extends Controller
 
     public function store(CheckInRequest $request): JsonResponse
     {
+        $now = Carbon::now('Asia/Jakarta');
+        $hour = $now->hour;
+        $minute = $now->hour * 60 + $now->minute;
+
+        if ($minute < 3 * 60) {
+            return $this->errorResponse('Belum waktu presensi. Waktu check-in dimulai pukul 03:00 WIB.', 422);
+        }
+
+        if ($minute >= 10 * 60) {
+            return $this->errorResponse('Batas waktu check-in telah berakhir (09:59 WIB). Silakan lakukan check-out.', 422);
+        }
+
         $user = $request->user();
         $employeeId = $user->employee_id;
 

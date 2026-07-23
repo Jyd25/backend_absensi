@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\AttendanceCreated;
 use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceType;
 use App\Enums\LocationStatus;
@@ -126,6 +127,8 @@ class AttendanceService extends BaseService
             ]);
 
             $this->createProcessRecords($attendance->id, 'check_in');
+
+            event(new AttendanceCreated($attendance->load(['employee', 'location', 'schedule'])));
 
             return $attendance->load(['employee', 'location', 'schedule']);
         });
