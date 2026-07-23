@@ -32,10 +32,30 @@ class AttendanceService extends BaseService
         return $this->attendanceRepository->getTodayByEmployee($employeeId);
     }
 
-    public function isPastCheckInDeadline(): bool
+    public function isPastCheckInDeadline($schedule = null): bool
     {
-        $hour = Carbon::now()->hour;
-        return $hour >= 10;
+        $now = Carbon::now('Asia/Jakarta');
+        $currentMinute = $now->hour * 60 + $now->minute;
+
+        $endHour = 16;
+        $endMinute = 0;
+
+        if ($schedule) {
+            $isSaturday = $now->isSaturday();
+            if ($isSaturday && $schedule->saturday_end_time) {
+                $et = $schedule->saturday_end_time instanceof Carbon
+                    ? $schedule->saturday_end_time
+                    : Carbon::parse($schedule->saturday_end_time);
+            } else {
+                $et = $schedule->end_time instanceof Carbon
+                    ? $schedule->end_time
+                    : Carbon::parse($schedule->end_time);
+            }
+            $endHour = $et->hour;
+            $endMinute = $et->minute;
+        }
+
+        return $currentMinute >= ($endHour * 60 + $endMinute);
     }
 
     public function withEmployee()
@@ -148,7 +168,7 @@ class AttendanceService extends BaseService
                     'photo_data' => $data['photo_data'] ?? $attendance->photo_data,
                     'checkout_photo_data' => $data['photo_data'] ?? null,
                     'checkout_address' => $data['address'] ?? null,
-                    'status_checkout' => $this->calculateCheckoutStatus($checkOutTime),
+                    'status_checkout' => $this->calculateCheckoutStatus($checkOutTime, $attendance->schedule),
                 ]);
 
                 $workMinutes = 0;
@@ -213,7 +233,7 @@ class AttendanceService extends BaseService
                     'ip_address' => request()->ip(),
                     'address' => null,
                     'checkout_address' => $data['address'] ?? null,
-                    'status_checkout' => $this->calculateCheckoutStatus($checkOutTime),
+                    'status_checkout' => $this->calculateCheckoutStatus($checkOutTime, $employee->schedule),
                     'remarks' => 'Presensi terlambat — check-in kosong, menunggu disetujui admin.',
                 ]);
 
@@ -251,7 +271,7 @@ class AttendanceService extends BaseService
         return $query->paginate($request->get('per_page', 15));
     }
 
-    public function calculateCheckoutStatus($checkOutTime): ?string
+    public function calculateCheckoutStatus($checkOutTime, $schedule = null): ?string
     {
         if (!$checkOutTime) {
             return null;
@@ -264,13 +284,27 @@ class AttendanceService extends BaseService
             return 'Libur';
         }
 
-        if ($dayOfWeek === Carbon::SATURDAY) {
-            return $time->lt(Carbon::parse('12:00', 'Asia/Jakarta'))
-                ? 'Pulang Cepat'
-                : 'Pulang Tepat Waktu';
+        // Determine end time from schedule
+        $endHour = 16;
+        $endMinute = 0;
+
+        if ($schedule) {
+            if ($dayOfWeek === Carbon::SATURDAY && $schedule->saturday_end_time) {
+                $et = $schedule->saturday_end_time instanceof Carbon
+                    ? $schedule->saturday_end_time
+                    : Carbon::parse($schedule->saturday_end_time);
+            } else {
+                $et = $schedule->end_time instanceof Carbon
+                    ? $schedule->end_time
+                    : Carbon::parse($schedule->end_time);
+            }
+            $endHour = $et->hour;
+            $endMinute = $et->minute;
         }
 
-        return $time->lt(Carbon::parse('16:00', 'Asia/Jakarta'))
+        $endTime = Carbon::parse(sprintf('%02d:%02d', $endHour, $endMinute), 'Asia/Jakarta');
+
+        return $time->lt($endTime)
             ? 'Pulang Cepat'
             : 'Pulang Tepat Waktu';
     }

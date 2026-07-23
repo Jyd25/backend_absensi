@@ -82,20 +82,55 @@ class AttendanceController extends Controller
 
     public function store(CheckInRequest $request): JsonResponse
     {
-        $now = Carbon::now('Asia/Jakarta');
-        $hour = $now->hour;
-        $minute = $now->hour * 60 + $now->minute;
-
-        if ($minute < 3 * 60) {
-            return $this->errorResponse('Belum waktu presensi. Waktu check-in dimulai pukul 03:00 WIB.', 422);
-        }
-
-        if ($minute >= 10 * 60) {
-            return $this->errorResponse('Batas waktu check-in telah berakhir (09:59 WIB). Silakan lakukan check-out.', 422);
-        }
-
         $user = $request->user();
         $employeeId = $user->employee_id;
+        $now = Carbon::now('Asia/Jakarta');
+        $minute = $now->hour * 60 + $now->minute;
+
+        // Determine schedule start time for check-in window
+        $employee = $employeeId ? \App\Models\Employee::with('schedule')->find($employeeId) : null;
+        $schedule = $employee?->schedule;
+        $isSaturday = $now->isSaturday();
+
+        $scheduleStartHour = 7;
+        $scheduleStartMinute = 0;
+        $scheduleEndHour = 16;
+        $scheduleEndMinute = 0;
+
+        if ($schedule) {
+            if ($isSaturday && $schedule->saturday_start_time) {
+                $st = $schedule->saturday_start_time instanceof \Carbon\Carbon
+                    ? $schedule->saturday_start_time
+                    : \Carbon\Carbon::parse($schedule->saturday_start_time);
+                $et = $schedule->saturday_end_time instanceof \Carbon\Carbon
+                    ? $schedule->saturday_end_time
+                    : \Carbon\Carbon::parse($schedule->saturday_end_time);
+            } else {
+                $st = $schedule->start_time instanceof \Carbon\Carbon
+                    ? $schedule->start_time
+                    : \Carbon\Carbon::parse($schedule->start_time);
+                $et = $schedule->end_time instanceof \Carbon\Carbon
+                    ? $schedule->end_time
+                    : \Carbon\Carbon::parse($schedule->end_time);
+            }
+            $scheduleStartHour = $st->hour;
+            $scheduleStartMinute = $st->minute;
+            $scheduleEndHour = $et->hour;
+            $scheduleEndMinute = $et->minute;
+        }
+
+        $presensiStartMinute = $scheduleStartHour * 60 + $scheduleStartMinute;
+        $presensiDeadlineMinute = $scheduleEndHour * 60 + $scheduleEndMinute;
+
+        if ($minute < $presensiStartMinute) {
+            $startTime = sprintf('%02d:%02d', $scheduleStartHour, $scheduleStartMinute);
+            return $this->errorResponse("Belum waktu presensi. Waktu check-in dimulai pukul {$startTime} WIB.", 422);
+        }
+
+        if ($minute >= $presensiDeadlineMinute) {
+            $endTime = sprintf('%02d:%02d', $scheduleEndHour, $scheduleEndMinute);
+            return $this->errorResponse("Batas waktu check-in telah berakhir ({$endTime} WIB). Silakan lakukan check-out.", 422);
+        }
 
         if ($employeeId) {
             $existingToday = $this->attendanceService->getTodayByEmployee($employeeId);
@@ -241,8 +276,10 @@ class AttendanceController extends Controller
         ]);
 
         if (array_key_exists('check_out_time', $validated)) {
+            $attendance->load('schedule');
             $validated['status_checkout'] = $this->attendanceService->calculateCheckoutStatus(
-                $validated['check_out_time'] ?? null
+                $validated['check_out_time'] ?? null,
+                $attendance->schedule
             );
         }
 

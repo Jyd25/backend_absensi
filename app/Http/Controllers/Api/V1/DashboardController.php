@@ -166,8 +166,8 @@ class DashboardController extends Controller
             $result['schedule'] = [
                 'start_time' => $scheduleStart,
                 'end_time' => $scheduleEnd,
-                'check_in_deadline' => '09:00',
-                'check_out_deadline' => '20:00',
+                'presensi_start' => $scheduleStart,
+                'presensi_deadline' => $scheduleEnd,
             ];
 
             $result['current_time'] = $now->format('H:i:s');
