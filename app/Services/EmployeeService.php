@@ -36,8 +36,9 @@ class EmployeeService extends BaseService
             $employee = $this->employeeRepository->create($data);
 
             $position = $employee->position;
-            $roleName = $position && $position->name === 'Guru' ? 'Guru' : 'Karyawan';
-            $role = Role::where('name', $roleName)->first();
+            $role = $position && $position->role_id
+                ? Role::find($position->role_id)
+                : Role::where('name', 'Karyawan')->first();
 
             $password = $data['user_password'] ?? Str::random(8);
 
@@ -51,7 +52,7 @@ class EmployeeService extends BaseService
             ]);
 
             if ($role) {
-                $user->assignRole($roleName);
+                $user->assignRole($role->name);
             }
 
             return $employee->load(['department', 'position', 'schedule', 'user']);
@@ -61,7 +62,22 @@ class EmployeeService extends BaseService
     public function update($id, array $data): Employee
     {
         $employee = $this->employeeRepository->findOrFail($data);
+        $positionChanged = isset($data['position_id']) && $data['position_id'] != $employee->position_id;
 
-        return $this->employeeRepository->update($employee, $data);
+        $employee = $this->employeeRepository->update($employee, $data);
+
+        if ($positionChanged && $employee->user) {
+            $position = $employee->position;
+            $role = $position && $position->role_id
+                ? Role::find($position->role_id)
+                : Role::where('name', 'Karyawan')->first();
+
+            if ($role) {
+                $employee->user->update(['role_id' => $role->id]);
+                $employee->user->syncRoles([$role->name]);
+            }
+        }
+
+        return $employee->load(['department', 'position', 'schedule', 'user']);
     }
 }

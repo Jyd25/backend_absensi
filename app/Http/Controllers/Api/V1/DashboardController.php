@@ -135,24 +135,40 @@ class DashboardController extends Controller
             $now = Carbon::now('Asia/Jakarta');
             $scheduleStart = null;
             $scheduleEnd = null;
+            $presensiDeadline = null;
             $isSaturday = $now->isSaturday();
+            $scheduleName = null;
+            $breakStart = null;
+            $breakEnd = null;
+            $toleranceMinutes = 0;
+            $workingDays = [];
 
             if ($employee && $employee->schedule) {
-                if ($isSaturday && $employee->schedule->saturday_start_time) {
-                    $scheduleStart = $employee->schedule->saturday_start_time instanceof \Carbon\Carbon
-                        ? $employee->schedule->saturday_start_time->format('H:i')
-                        : $employee->schedule->saturday_start_time;
-                    $scheduleEnd = $employee->schedule->saturday_end_time instanceof \Carbon\Carbon
-                        ? $employee->schedule->saturday_end_time->format('H:i')
-                        : $employee->schedule->saturday_end_time;
+                $s = $employee->schedule;
+                $scheduleName = $s->name ?? '-';
+                $toleranceMinutes = $s->tolerance_minutes ?? 0;
+                $workingDays = $s->working_days ?? [];
+                $breakStart = $s->break_start instanceof \Carbon\Carbon ? $s->break_start->format('H:i') : $s->break_start;
+                $breakEnd = $s->break_end instanceof \Carbon\Carbon ? $s->break_end->format('H:i') : $s->break_end;
+
+                if ($isSaturday && $s->saturday_start_time) {
+                    $scheduleStart = $s->saturday_start_time instanceof \Carbon\Carbon
+                        ? $s->saturday_start_time->format('H:i')
+                        : $s->saturday_start_time;
+                    $scheduleEnd = $s->saturday_end_time instanceof \Carbon\Carbon
+                        ? $s->saturday_end_time->format('H:i')
+                        : $s->saturday_end_time;
                 } else {
-                    $scheduleStart = $employee->schedule->start_time instanceof \Carbon\Carbon
-                        ? $employee->schedule->start_time->format('H:i')
-                        : $employee->schedule->start_time;
-                    $scheduleEnd = $employee->schedule->end_time instanceof \Carbon\Carbon
-                        ? $employee->schedule->end_time->format('H:i')
-                        : $employee->schedule->end_time;
+                    $scheduleStart = $s->start_time instanceof \Carbon\Carbon
+                        ? $s->start_time->format('H:i')
+                        : $s->start_time;
+                    $scheduleEnd = $s->end_time instanceof \Carbon\Carbon
+                        ? $s->end_time->format('H:i')
+                        : $s->end_time;
                 }
+
+                $startCarbon = $s->start_time instanceof \Carbon\Carbon ? $s->start_time : Carbon::parse($scheduleStart);
+                $presensiDeadline = $startCarbon->copy()->addMinutes($toleranceMinutes)->format('H:i');
             }
 
             $result['my_attendance'] = $myAttendance ? [
@@ -161,13 +177,19 @@ class DashboardController extends Controller
                 'check_out_time' => $myAttendance->check_out_time,
                 'location_status' => $myAttendance->location_status,
                 'face_status' => $myAttendance->face_status,
+                'status_checkout' => $myAttendance->status_checkout,
             ] : null;
 
             $result['schedule'] = [
+                'name' => $scheduleName,
                 'start_time' => $scheduleStart,
                 'end_time' => $scheduleEnd,
+                'break_start' => $breakStart,
+                'break_end' => $breakEnd,
+                'tolerance_minutes' => $toleranceMinutes,
+                'working_days' => $workingDays,
                 'presensi_start' => $scheduleStart,
-                'presensi_deadline' => $scheduleEnd,
+                'presensi_deadline' => $presensiDeadline,
             ];
 
             $result['current_time'] = $now->format('H:i:s');
