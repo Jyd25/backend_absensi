@@ -61,7 +61,7 @@ class EmployeeService extends BaseService
 
     public function update($id, array $data): Employee
     {
-        $employee = $this->employeeRepository->findOrFail($data);
+        $employee = $this->employeeRepository->findOrFail($id);
         $positionChanged = isset($data['position_id']) && $data['position_id'] != $employee->position_id;
 
         $employee = $this->employeeRepository->update($employee, $data);
