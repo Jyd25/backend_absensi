@@ -22,7 +22,7 @@ class EmployeeResource extends JsonResource
             'department' => new DepartmentResource($this->whenLoaded('department')),
             'position' => new PositionResource($this->whenLoaded('position')),
             'schedule' => new ScheduleResource($this->whenLoaded('schedule')),
-            'photo' => $this->photo,
+            'photo' => $this->photo_data ?: $this->photo,
             'is_active' => $this->is_active,
         ];
     }
