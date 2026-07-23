@@ -140,12 +140,15 @@ class AttendanceService extends BaseService
             if ($attendanceId) {
                 $attendance = Attendance::findOrFail($attendanceId);
 
+                $checkOutTime = now();
                 $attendance->update([
-                    'check_out_time' => now(),
+                    'check_out_time' => $checkOutTime,
                     'face_score' => $data['face_score'] ?? $attendance->face_score,
                     'face_status' => $data['face_status'] ?? $attendance->face_status,
                     'photo_data' => $data['photo_data'] ?? $attendance->photo_data,
                     'checkout_photo_data' => $data['photo_data'] ?? null,
+                    'checkout_address' => $data['address'] ?? null,
+                    'status_checkout' => $this->calculateCheckoutStatus($checkOutTime),
                 ]);
 
                 $workMinutes = 0;
@@ -190,13 +193,14 @@ class AttendanceService extends BaseService
                     ? LocationStatus::InsideRadius
                     : LocationStatus::OutsideRadius;
 
+                $checkOutTime = now();
                 $attendance = Attendance::create([
                     'employee_id' => $employee->id,
                     'location_id' => $location->id,
                     'schedule_id' => $employee->schedule?->id,
                     'attendance_type' => AttendanceType::CheckOut,
                     'check_in_time' => null,
-                    'check_out_time' => now(),
+                    'check_out_time' => $checkOutTime,
                     'latitude' => $data['latitude'] ?? null,
                     'longitude' => $data['longitude'] ?? null,
                     'distance' => $distance,
@@ -207,7 +211,9 @@ class AttendanceService extends BaseService
                     'photo_data' => $data['photo_data'] ?? null,
                     'checkout_photo_data' => $data['photo_data'] ?? null,
                     'ip_address' => request()->ip(),
-                    'address' => $data['address'] ?? null,
+                    'address' => null,
+                    'checkout_address' => $data['address'] ?? null,
+                    'status_checkout' => $this->calculateCheckoutStatus($checkOutTime),
                     'remarks' => 'Presensi terlambat — check-in kosong, menunggu disetujui admin.',
                 ]);
 
@@ -243,6 +249,30 @@ class AttendanceService extends BaseService
         }
 
         return $query->paginate($request->get('per_page', 15));
+    }
+
+    public function calculateCheckoutStatus($checkOutTime): ?string
+    {
+        if (!$checkOutTime) {
+            return null;
+        }
+
+        $time = Carbon::parse($checkOutTime)->setTimezone('Asia/Jakarta');
+        $dayOfWeek = $time->dayOfWeek;
+
+        if ($dayOfWeek === Carbon::SUNDAY) {
+            return 'Libur';
+        }
+
+        if ($dayOfWeek === Carbon::SATURDAY) {
+            return $time->lt(Carbon::parse('12:00', 'Asia/Jakarta'))
+                ? 'Pulang Cepat'
+                : 'Pulang Tepat Waktu';
+        }
+
+        return $time->lt(Carbon::parse('16:00', 'Asia/Jakarta'))
+            ? 'Pulang Cepat'
+            : 'Pulang Tepat Waktu';
     }
 
     protected function calculateDistance($lat1, $lon1, $lat2, $lon2): float

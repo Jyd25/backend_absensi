@@ -28,7 +28,13 @@ class ExportController extends Controller
         ]);
 
         $query = Attendance::with(['employee.department', 'employee.position', 'location'])
-            ->whereBetween(DB::raw('DATE(check_in_time)'), [$request->start_date, $request->end_date]);
+            ->where(function ($q) use ($request) {
+                $q->whereBetween(DB::raw('DATE(check_in_time)'), [$request->start_date, $request->end_date])
+                    ->orWhere(function ($q2) use ($request) {
+                        $q2->whereNull('check_in_time')
+                            ->whereBetween(DB::raw('DATE(check_out_time)'), [$request->start_date, $request->end_date]);
+                    });
+            });
 
         if ($request->department_id) {
             $query->whereHas('employee', fn ($q) => $q->where('department_id', $request->department_id));
@@ -45,19 +51,23 @@ class ExportController extends Controller
                     'department' => $employee->department?->name ?? '-',
                     'position' => $employee->position?->name ?? '-',
                     'records' => $records->map(fn ($a) => [
-                        'date' => $a->check_in_time ? \Carbon\Carbon::parse($a->check_in_time)->format('d/m/Y') : '-',
+                        'date' => $a->check_in_time ? \Carbon\Carbon::parse($a->check_in_time)->format('d/m/Y') : ($a->check_out_time ? \Carbon\Carbon::parse($a->check_out_time)->format('d/m/Y') : '-'),
                         'check_in' => $a->check_in_time ? \Carbon\Carbon::parse($a->check_in_time)->format('H:i') : '-',
                         'check_out' => $a->check_out_time ? \Carbon\Carbon::parse($a->check_out_time)->format('H:i') : '-',
-                        'status' => match($a->attendance_status) {
+                        'status' => match($a->attendance_status?->value ?? $a->attendance_status) {
                             'present' => 'Hadir',
                             'late' => 'Terlambat',
                             'absent' => 'Alpha',
                             'permission' => 'Izin',
                             'sick' => 'Sakit',
-                            default => $a->attendance_status ?? '-',
+                            default => $a->attendance_status?->label() ?? $a->attendance_status ?? '-',
                         },
+                        'status_checkout' => $a->status_checkout ?? '-',
+                        'checkin_address' => $a->address ?? '-',
+                        'checkout_address' => $a->checkout_address ?? '-',
                         'location' => $a->location?->location_name ?? '-',
-                        'face' => $a->face_status === 'matched' ? 'Ya' : 'Tidak',
+                        'face' => $a->face_status?->value === 'matched' ? 'Ya' : 'Tidak',
+                        'remarks' => $a->remarks ?? '-',
                     ])->toArray(),
                 ];
             });

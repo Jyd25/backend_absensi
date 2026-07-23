@@ -48,7 +48,9 @@ class AttendanceResource extends JsonResource
             'photo_data' => $this->photo_data,
             'checkin_photo_data' => $this->checkin_photo_data,
             'checkout_photo_data' => $this->checkout_photo_data,
+            'status_checkout' => $this->status_checkout,
             'address' => $this->address,
+            'checkout_address' => $this->checkout_address,
             'work_duration' => $this->work_duration,
             'created_at' => $this->created_at,
         ];

@@ -240,6 +240,12 @@ class AttendanceController extends Controller
             'check_out_time' => 'nullable|date_format:Y-m-d\TH:i',
         ]);
 
+        if (array_key_exists('check_out_time', $validated)) {
+            $validated['status_checkout'] = $this->attendanceService->calculateCheckoutStatus(
+                $validated['check_out_time'] ?? null
+            );
+        }
+
         $attendance->update($validated);
         $attendance->load(['employee', 'location', 'schedule']);
 

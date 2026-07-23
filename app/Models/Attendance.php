@@ -37,7 +37,9 @@ class Attendance extends Model
         'photo_data',
         'checkin_photo_data',
         'checkout_photo_data',
+        'status_checkout',
         'address',
+        'checkout_address',
     ];
 
     protected $casts = [
