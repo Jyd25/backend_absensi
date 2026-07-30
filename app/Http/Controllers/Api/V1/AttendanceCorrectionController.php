@@ -89,37 +89,50 @@ class AttendanceCorrectionController extends Controller
 
         $checkInTime = $request->check_in_time ?? $correction->check_in_time;
         $checkOutTime = $request->check_out_time ?? $correction->check_out_time;
+        $dateStr = $correction->date instanceof Carbon ? $correction->date->format('Y-m-d') : $correction->date;
 
         $employee = Employee::with('schedule')->find($correction->employee_id);
 
+        $attendance = null;
         if ($correction->attendance_id) {
             $attendance = Attendance::find($correction->attendance_id);
-            if ($attendance) {
-                $updateData = [];
-                if ($checkInTime) {
-                    $updateData['check_in_time'] = $correction->date . ' ' . $checkInTime . ':00';
-                }
-                if ($checkOutTime) {
-                    $updateData['check_out_time'] = $correction->date . ' ' . $checkOutTime . ':00';
-                }
-                if (!empty($updateData)) {
-                    $attendance->update($updateData);
-                    $attendance->refresh();
-                    $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
-                }
+        }
+        if (!$attendance) {
+            $attendance = Attendance::where('employee_id', $correction->employee_id)
+                ->whereDate('check_in_time', $dateStr)
+                ->first();
+        }
+
+        if ($attendance) {
+            $updateData = [];
+            if ($checkInTime) {
+                $updateData['check_in_time'] = $dateStr . ' ' . $checkInTime . ':00';
             }
-        } elseif ($checkInTime && $checkOutTime) {
-            $checkIn = $correction->date . ' ' . $checkInTime . ':00';
-            $checkOut = $correction->date . ' ' . $checkOutTime . ':00';
-            $attendance = Attendance::create([
+            if ($checkOutTime) {
+                $updateData['check_out_time'] = $dateStr . ' ' . $checkOutTime . ':00';
+            }
+            if (!empty($updateData)) {
+                $attendance->update($updateData);
+                $attendance->refresh();
+                $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
+            }
+        } else {
+            $createData = [
                 'employee_id' => $correction->employee_id,
                 'attendance_type' => 'check_in',
-                'check_in_time' => $checkIn,
-                'check_out_time' => $checkOut,
                 'attendance_status' => 'present',
                 'remarks' => 'Approved correction by admin',
-            ]);
-            $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
+            ];
+            if ($checkInTime) {
+                $createData['check_in_time'] = $dateStr . ' ' . $checkInTime . ':00';
+            }
+            if ($checkOutTime) {
+                $createData['check_out_time'] = $dateStr . ' ' . $checkOutTime . ':00';
+            }
+            if ($checkInTime || $checkOutTime) {
+                $attendance = Attendance::create($createData);
+                $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
+            }
         }
 
         $correction->update([
