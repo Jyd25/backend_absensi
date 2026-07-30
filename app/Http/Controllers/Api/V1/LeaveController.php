@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attendance;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Traits\ApiResponse;
 use App\Traits\SendsNotifications;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -97,6 +99,8 @@ class LeaveController extends Controller
             'admin_note' => $request->admin_note,
         ]);
 
+        $this->createAttendanceForLeave($leave);
+
         $employee = $leave->employee;
         if ($employee) {
             $user = $employee->user ?? User::where('employee_id', $employee->id)->first();
@@ -119,6 +123,34 @@ class LeaveController extends Controller
         );
 
         return $this->successResponse($leave->fresh(['employee', 'approver']), 'Izin disetujui');
+    }
+
+    private function createAttendanceForLeave(LeaveRequest $leave): void
+    {
+        $start = Carbon::parse($leave->start_date);
+        $end = Carbon::parse($leave->end_date);
+        $statusMap = [
+            'permission' => 'permission',
+            'sick' => 'sick',
+            'leave' => 'leave',
+        ];
+        $attendanceStatus = $statusMap[$leave->type] ?? 'permission';
+
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            $existing = Attendance::where('employee_id', $leave->employee_id)
+                ->whereDate('check_in_time', $date)
+                ->first();
+
+            if (!$existing) {
+                Attendance::create([
+                    'employee_id' => $leave->employee_id,
+                    'attendance_type' => 'check_in',
+                    'check_in_time' => $date->format('Y-m-d') . ' 00:00:00',
+                    'attendance_status' => $attendanceStatus,
+                    'remarks' => $leave->reason,
+                ]);
+            }
+        }
     }
 
     public function reject(Request $request, int $id): JsonResponse

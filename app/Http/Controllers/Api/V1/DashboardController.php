@@ -173,8 +173,8 @@ class DashboardController extends Controller
 
             $result['my_attendance'] = $myAttendance ? [
                 'status' => $myAttendance->attendance_status,
-                'check_in_time' => $myAttendance->check_in_time,
-                'check_out_time' => $myAttendance->check_out_time,
+                'check_in_time' => $myAttendance->check_in_time ? Carbon::parse($myAttendance->check_in_time)->format('H:i') : null,
+                'check_out_time' => $myAttendance->check_out_time ? Carbon::parse($myAttendance->check_out_time)->format('H:i') : null,
                 'location_status' => $myAttendance->location_status,
                 'face_status' => $myAttendance->face_status,
                 'status_checkout' => $myAttendance->status_checkout,

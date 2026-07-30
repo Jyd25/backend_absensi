@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\AttendanceCorrection;
+use App\Models\Employee;
 use App\Models\User;
 use App\Traits\ApiResponse;
 use App\Traits\SendsNotifications;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -73,8 +75,8 @@ class AttendanceCorrectionController extends Controller
 
     public function approve(Request $request, int $id): JsonResponse
     {
-        $user = $request->user();
-        if ($user->role?->name !== 'Administrator') {
+        $admin = $request->user();
+        if ($admin->role?->name !== 'Administrator') {
             return $this->errorResponse('Akses ditolak', 403);
         }
 
@@ -83,40 +85,44 @@ class AttendanceCorrectionController extends Controller
             'admin_note' => 'nullable|string',
         ]);
 
-        if ($correction->attendance_id && $correction->check_in_time) {
+        $employee = Employee::with('schedule')->find($correction->employee_id);
+
+        if ($correction->attendance_id) {
             $attendance = Attendance::find($correction->attendance_id);
             if ($attendance) {
-                $checkIn = $correction->date . ' ' . $correction->check_in_time . ':00';
-                $checkOut = $correction->check_out_time ? $correction->date . ' ' . $correction->check_out_time . ':00' : $attendance->check_out_time;
-                $attendance->update([
-                    'check_in_time' => $checkIn,
-                    'check_out_time' => $checkOut,
-                ]);
+                $updateData = [];
+                if ($correction->check_in_time) {
+                    $updateData['check_in_time'] = $correction->date . ' ' . $correction->check_in_time . ':00';
+                }
+                if ($correction->check_out_time) {
+                    $updateData['check_out_time'] = $correction->date . ' ' . $correction->check_out_time . ':00';
+                }
+                if (!empty($updateData)) {
+                    $attendance->update($updateData);
+                    $attendance->refresh();
+                    $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
+                }
             }
         } elseif ($correction->check_in_time && $correction->check_out_time) {
-            $user = $request->user();
-            $employeeId = $correction->employee_id;
             $checkIn = $correction->date . ' ' . $correction->check_in_time . ':00';
             $checkOut = $correction->date . ' ' . $correction->check_out_time . ':00';
-            $status = 'present';
-
-            Attendance::create([
-                'employee_id' => $employeeId,
+            $attendance = Attendance::create([
+                'employee_id' => $correction->employee_id,
                 'attendance_type' => 'check_in',
                 'check_in_time' => $checkIn,
                 'check_out_time' => $checkOut,
-                'attendance_status' => $status,
+                'attendance_status' => 'present',
                 'remarks' => 'Approved correction by admin',
             ]);
+            $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
         }
 
         $correction->update([
             'status' => 'approved',
-            'approved_by' => $request->user()->id,
+            'approved_by' => $admin->id,
             'admin_note' => $request->admin_note,
         ]);
 
-        $employee = $correction->employee;
         if ($employee) {
             $user = $employee->user ?? User::where('employee_id', $employee->id)->first();
             if ($user) {
@@ -131,6 +137,41 @@ class AttendanceCorrectionController extends Controller
         }
 
         return $this->successResponse($correction->fresh(['employee', 'approver']), 'Perbaikan disetujui');
+    }
+
+    private function recalculateAttendanceStatus(Attendance $attendance, $schedule): void
+    {
+        $checkInTime = Carbon::parse($attendance->check_in_time);
+        $checkOutTime = $attendance->check_out_time ? Carbon::parse($attendance->check_out_time) : null;
+        $isSaturday = $checkInTime->isSaturday();
+
+        $scheduleStart = null;
+        $scheduleEnd = null;
+        $tolerance = 0;
+
+        if ($schedule) {
+            $tolerance = $schedule->tolerance_minutes ?? 0;
+            if ($isSaturday && $schedule->saturday_start_time) {
+                $scheduleStart = $schedule->saturday_start_time instanceof Carbon ? $schedule->saturday_start_time : Carbon::parse($schedule->saturday_start_time);
+                $scheduleEnd = $schedule->saturday_end_time instanceof Carbon ? $schedule->saturday_end_time : Carbon::parse($schedule->saturday_end_time);
+            } else {
+                $scheduleStart = $schedule->start_time instanceof Carbon ? $schedule->start_time : Carbon::parse($schedule->start_time);
+                $scheduleEnd = $schedule->end_time instanceof Carbon ? $schedule->end_time : Carbon::parse($schedule->end_time);
+            }
+        }
+
+        if ($scheduleStart) {
+            $lateThreshold = $scheduleStart->copy()->addMinutes($tolerance);
+            $checkInMin = $checkInTime->copy()->setHour($scheduleStart->hour)->setMinute($scheduleStart->minute);
+            $attendance->attendance_status = $checkInTime->gt($lateThreshold) ? 'late' : 'present';
+            $attendance->save();
+        }
+
+        if ($checkOutTime && $scheduleEnd) {
+            $scheduleEndCarbon = $checkOutTime->copy()->setHour($scheduleEnd->hour)->setMinute($scheduleEnd->minute);
+            $attendance->status_checkout = $checkOutTime->lt($scheduleEndCarbon) ? 'Pulang Cepat' : 'Pulang Tepat Waktu';
+            $attendance->save();
+        }
     }
 
     public function reject(Request $request, int $id): JsonResponse

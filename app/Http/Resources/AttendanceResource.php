@@ -32,8 +32,8 @@ class AttendanceResource extends JsonResource
                 ];
             }),
             'attendance_type' => $this->attendance_type?->value,
-            'check_in_time' => $this->check_in_time?->toISOString(),
-            'check_out_time' => $this->check_out_time?->toISOString(),
+            'check_in_time' => $this->check_in_time?->format('H:i'),
+            'check_out_time' => $this->check_out_time?->format('H:i'),
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'distance' => $this->distance,
