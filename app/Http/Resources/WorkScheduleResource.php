@@ -14,6 +14,8 @@ class WorkScheduleResource extends JsonResource
             'name' => $this->name,
             'start_time' => $this->start_time?->format('H:i'),
             'end_time' => $this->end_time?->format('H:i'),
+            'saturday_start_time' => $this->saturday_start_time?->format('H:i'),
+            'saturday_end_time' => $this->saturday_end_time?->format('H:i'),
             'break_start' => $this->break_start?->format('H:i'),
             'break_end' => $this->break_end?->format('H:i'),
             'tolerance_minutes' => $this->tolerance_minutes,

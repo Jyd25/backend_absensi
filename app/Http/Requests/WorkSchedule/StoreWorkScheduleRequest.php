@@ -17,6 +17,8 @@ class StoreWorkScheduleRequest extends FormRequest
             'name' => 'required|string|max:255',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
+            'saturday_start_time' => 'nullable|date_format:H:i',
+            'saturday_end_time' => 'nullable|date_format:H:i|required_with:saturday_start_time',
             'break_start' => 'nullable|date_format:H:i',
             'break_end' => 'nullable|date_format:H:i',
             'tolerance_minutes' => 'nullable|integer|min:0|max:120',
