@@ -91,6 +91,15 @@ class AttendanceCorrectionController extends Controller
         $checkOutTime = $request->check_out_time ?? $correction->check_out_time;
         $dateStr = $correction->date instanceof Carbon ? $correction->date->format('Y-m-d') : $correction->date;
 
+        $normalizeTime = function ($t) {
+            if (!$t) return null;
+            $parts = explode(':', $t);
+            return $parts[0] . ':' . $parts[1];
+        };
+
+        $checkInTime = $normalizeTime($checkInTime);
+        $checkOutTime = $normalizeTime($checkOutTime);
+
         $employee = Employee::with('schedule')->find($correction->employee_id);
 
         $attendance = null;
