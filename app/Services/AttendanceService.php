@@ -251,11 +251,18 @@ class AttendanceService extends BaseService
         });
     }
 
-    public function getHistory($employeeId, Request $request)
+    public function getHistory($employeeId, Request $request, bool $viewAll = false)
     {
-        $query = Attendance::where('employee_id', $employeeId)
-            ->with(['employee', 'employee.primaryFace', 'location', 'schedule'])
+        $query = Attendance::with(['employee', 'employee.primaryFace', 'location', 'schedule'])
             ->latest('check_in_time');
+
+        if ($viewAll) {
+            if ($request->filled('employee_id')) {
+                $query->where('employee_id', $request->employee_id);
+            }
+        } else {
+            $query->where('employee_id', $employeeId);
+        }
 
         if ($request->has('start_date') && $request->has('end_date')) {
             $query->whereBetween('check_in_time', [

@@ -295,13 +295,16 @@ class AttendanceController extends Controller
     public function history(Request $request): JsonResponse
     {
         $user = $request->user();
+        $roleName = $user->role?->name;
         $employeeId = $user->employee_id;
 
-        if (!$employeeId) {
+        $canViewAll = in_array($roleName, ['Administrator', 'Pimpinan']);
+
+        if (!$canViewAll && !$employeeId) {
             return $this->errorResponse('No employee profile found.', 404);
         }
 
-        $attendances = $this->attendanceService->getHistory($employeeId, $request);
+        $attendances = $this->attendanceService->getHistory($employeeId, $request, $canViewAll);
 
         return $this->paginatedResponse(AttendanceResource::collection($attendances));
     }
