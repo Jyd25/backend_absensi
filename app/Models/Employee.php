@@ -63,6 +63,18 @@ class Employee extends Model
         return $this->hasMany(FaceDataset::class);
     }
 
+    public function primaryFace(): HasOne
+    {
+        return $this->hasOne(FaceDataset::class)->where('is_primary', true);
+    }
+
+    public function getPrimaryFacePhotoAttribute(): ?string
+    {
+        $face = $this->primaryFace;
+
+        return $face ? ($face->image_data ?: $face->image_path) : null;
+    }
+
     public function user(): HasOne
     {
         return $this->hasOne(User::class);

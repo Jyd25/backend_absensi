@@ -150,7 +150,7 @@ class AttendanceService extends BaseService
 
             event(new AttendanceCreated($attendance->load(['employee', 'location', 'schedule'])));
 
-            return $attendance->load(['employee', 'location', 'schedule']);
+            return $attendance->load(['employee', 'employee.primaryFace', 'location', 'schedule']);
         });
     }
 
@@ -247,14 +247,14 @@ class AttendanceService extends BaseService
                 $this->createProcessRecords($attendance->id, 'check_out');
             }
 
-            return $attendance->load(['employee', 'location', 'schedule']);
+            return $attendance->load(['employee', 'employee.primaryFace', 'location', 'schedule']);
         });
     }
 
     public function getHistory($employeeId, Request $request)
     {
         $query = Attendance::where('employee_id', $employeeId)
-            ->with(['employee', 'location', 'schedule'])
+            ->with(['employee', 'employee.primaryFace', 'location', 'schedule'])
             ->latest('check_in_time');
 
         if ($request->has('start_date') && $request->has('end_date')) {

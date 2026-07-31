@@ -16,7 +16,7 @@ class ProfileController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user()->load(['role', 'employee.department', 'employee.position', 'employee.schedule']);
+        $user = $request->user()->load(['role', 'employee.department', 'employee.position', 'employee.schedule', 'employee.primaryFace']);
         return $this->successResponse(
             new UserResource($user)
         );
@@ -60,7 +60,7 @@ class ProfileController extends Controller
             }
         });
 
-        $freshUser = $user->fresh(['role', 'employee.department', 'employee.position', 'employee.schedule']);
+        $freshUser = $user->fresh(['role', 'employee.department', 'employee.position', 'employee.schedule', 'employee.primaryFace']);
 
         return $this->successResponse(
             new UserResource($freshUser),

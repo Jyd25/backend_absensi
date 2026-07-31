@@ -89,7 +89,7 @@ class AuthService extends BaseService
 
         event(new UserLoggedIn($user));
 
-        $user->load(['role', 'employee.department', 'employee.position', 'employee.schedule']);
+        $user->load(['role', 'employee.department', 'employee.position', 'employee.schedule', 'employee.primaryFace']);
 
         return [
             'success' => true,

@@ -30,7 +30,7 @@ class AttendanceController extends Controller
         $user = $request->user();
         $roleName = $user->role?->name;
 
-        $query = Attendance::with(['employee', 'location', 'schedule']);
+        $query = Attendance::with(['employee', 'employee.primaryFace', 'location', 'schedule']);
 
         if (in_array($roleName, ['Guru', 'Karyawan'])) {
             $query->where('employee_id', $user->employee_id);
@@ -237,7 +237,7 @@ class AttendanceController extends Controller
             return $this->errorResponse('Tidak memiliki akses.', 403);
         }
 
-        $attendance->load(['employee', 'location', 'schedule']);
+        $attendance->load(['employee', 'employee.primaryFace', 'location', 'schedule']);
 
         return $this->successResponse(
             new AttendanceResource($attendance)
@@ -256,7 +256,7 @@ class AttendanceController extends Controller
         $attendance = $this->attendanceService->getTodayByEmployee($employeeId);
 
         return $this->successResponse(
-            $attendance ? new AttendanceResource($attendance->load(['employee', 'location', 'schedule'])) : null,
+            $attendance ? new AttendanceResource($attendance->load(['employee', 'employee.primaryFace', 'location', 'schedule'])) : null,
             $attendance ? 'Today\'s attendance retrieved.' : 'No attendance today.'
         );
     }
@@ -284,7 +284,7 @@ class AttendanceController extends Controller
         }
 
         $attendance->update($validated);
-        $attendance->load(['employee', 'location', 'schedule']);
+        $attendance->load(['employee', 'employee.primaryFace', 'location', 'schedule']);
 
         return $this->successResponse(
             new AttendanceResource($attendance),

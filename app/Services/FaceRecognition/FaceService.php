@@ -38,6 +38,10 @@ class FaceService
                 'is_primary' => !$existing,
             ]);
 
+            if ($faceDataset->is_primary && $imageData) {
+                $employee->update(['photo' => $imageData]);
+            }
+
             return $faceDataset;
         });
     }
@@ -149,6 +153,11 @@ class FaceService
 
                 if ($nextOldest) {
                     $nextOldest->update(['is_primary' => true]);
+                    $nextImage = $nextOldest->image_data ?: $nextOldest->image_path;
+                    if ($nextImage) {
+                        Employee::where('id', $nextOldest->employee_id)
+                            ->update(['photo' => $nextImage]);
+                    }
                 }
             }
 

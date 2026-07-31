@@ -103,6 +103,11 @@ class FaceUpdateRequestController extends Controller
                 'image_data' => $faceRequest->image_data,
                 'is_primary' => true,
             ]);
+
+            if ($faceRequest->image_data) {
+                \App\Models\Employee::where('id', $faceRequest->employee_id)
+                    ->update(['photo' => $faceRequest->image_data]);
+            }
         });
 
         $employee = $faceRequest->employee;

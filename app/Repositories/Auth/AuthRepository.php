@@ -30,6 +30,7 @@ class AuthRepository extends BaseRepository
             'employee.department',
             'employee.position',
             'employee.schedule',
+            'employee.primaryFace',
         ])->find($userId);
     }
 }

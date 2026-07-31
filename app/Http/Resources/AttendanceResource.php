@@ -32,8 +32,8 @@ class AttendanceResource extends JsonResource
                 ];
             }),
             'attendance_type' => $this->attendance_type?->value,
-            'check_in_time' => $this->check_in_time?->format('H:i'),
-            'check_out_time' => $this->check_out_time?->format('H:i'),
+            'check_in_time' => $this->check_in_time?->toIso8601String(),
+            'check_out_time' => $this->check_out_time?->toIso8601String(),
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'distance' => $this->distance,
@@ -52,7 +52,7 @@ class AttendanceResource extends JsonResource
             'address' => $this->address,
             'checkout_address' => $this->checkout_address,
             'work_duration' => $this->work_duration,
-            'created_at' => $this->created_at,
+            'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 }

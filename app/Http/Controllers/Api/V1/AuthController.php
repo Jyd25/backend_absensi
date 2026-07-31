@@ -110,7 +110,7 @@ class AuthController extends Controller
         $user->update($request->validated());
 
         return $this->successResponse(
-            new UserResource($user->fresh(['role', 'employee.department', 'employee.position', 'employee.schedule'])),
+            new UserResource($user->fresh(['role', 'employee.department', 'employee.position', 'employee.schedule', 'employee.primaryFace'])),
             'Profile updated successfully.'
         );
     }

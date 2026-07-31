@@ -28,7 +28,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('viewAny', Employee::class);
 
-        $query = Employee::with(['department', 'position', 'schedule']);
+        $query = Employee::with(['department', 'position', 'schedule', 'primaryFace']);
 
         if ($request->has('search')) {
             $query->search($request->search);
@@ -67,7 +67,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('view', $employee);
 
-        $employee->load(['department', 'position', 'schedule', 'user']);
+        $employee->load(['department', 'position', 'schedule', 'user', 'primaryFace']);
 
         return $this->successResponse(
             new EmployeeResource($employee)

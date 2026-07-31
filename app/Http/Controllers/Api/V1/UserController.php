@@ -66,7 +66,7 @@ class UserController extends Controller
         }
 
         return $this->successResponse(
-            new UserResource($user->load(['role', 'employee'])),
+            new UserResource($user->load(['role', 'employee', 'employee.primaryFace'])),
             'User created successfully.',
             201
         );
@@ -110,7 +110,7 @@ class UserController extends Controller
         }
 
         return $this->successResponse(
-            new UserResource($user->fresh()->load(['role', 'employee'])),
+            new UserResource($user->fresh()->load(['role', 'employee', 'employee.primaryFace'])),
             'User updated successfully.'
         );
     }
