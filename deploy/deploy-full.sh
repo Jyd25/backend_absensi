@@ -101,7 +101,7 @@ DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=sistem_kehadiran
 DB_USERNAME=sistem_kehadiran
-DB_PASSWORD=Absensi$ecure2025!
+DB_PASSWORD=(replace with real value — keep in .env, NOT in git)
 
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
@@ -119,14 +119,14 @@ REDIS_HOST=127.0.0.1
 REDIS_PASSWORD=null
 REDIS_PORT=6379
 
-JWT_SECRET=IHei519HQpNvosHmgUgKyw3NKYBZCiXIx1Id3ljH5mu2gyodoYtsGZPaMWzPnrAI
+JWT_SECRET=(replace with real value — keep in .env, NOT in git)
 JWT_ALGO=HS256
 JWT_TTL=60
 JWT_REFRESH_TTL=10080
 
-REVERB_APP_KEY=4d19688de7b2e366be6ea4a09234a461
-REVERB_APP_SECRET=02002b7fcf527ab4f29385dad56a6c7b5e77d050d8080244741db15a65d256fd
-REVERB_APP_ID=868005
+REVERB_APP_KEY=(replace with real value — keep in .env, NOT in git)
+REVERB_APP_SECRET=(replace with real value — keep in .env, NOT in git)
+REVERB_APP_ID=(replace with real value — keep in .env, NOT in git)
 REVERB_HOST=api.applab.my.id
 REVERB_PORT=443
 REVERB_SCHEME=https

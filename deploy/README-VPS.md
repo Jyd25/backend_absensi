@@ -1,15 +1,20 @@
 # ============================================
-# VPS Deployment Guide
+# VPS Deployment Guide (OUTDATED)
 # Backend Sistem Kehadiran — applab.my.id
 # ============================================
 
-## Overview
+> **PERINGATAN: Dokumen ini SUDAH TIDAK AKURAT.**
+> Produksi saat ini menggunakan MySQL lokal (bukan Neon), PHP 8.3, path `/var/www/absensi`, dan user root.
+> Gunakan panduan resmi terbaru: `DEPLOY-VPS.md` (backup lokal di `E:\_project\absensi app\` — TIDAK di-push ke GitHub).
+> Semua nilai rahasia di bawah ini sudah diganti placeholder dan TIDAK boleh dimasukkan ke git.
+
+## Overview (STALE — lihat peringatan di atas)
 
 - **Domain**: applab.my.id
-- **Backend**: Laravel 12 (PHP 8.2 + Nginx + Supervisor)
-- **Database**: Neon PostgreSQL (cloud)
-- **Frontend**: Vercel (https://frontend-jyd25.vercel.app)
-- **Stack**: Ubuntu 22.04/24.04, PHP 8.2-FPM, Nginx, Supervisor, Redis
+- **Backend**: Laravel 12 (PHP 8.3 + Nginx + Supervisor)
+- **Database**: MySQL 8.0 lokal VPS (db: absensi, user: absensi)
+- **Frontend**: Vercel (https://sistem-kehadiran.applab.my.id)
+- **Stack**: Ubuntu 24.04, PHP 8.3-FPM, Nginx, Supervisor, Redis
 
 ## Prerequisites
 
@@ -82,7 +87,7 @@ DB_HOST=ep-lingering-bird-adya0a8a-pooler.c-2.us-east-1.aws.neon.tech
 DB_PORT=5432
 DB_DATABASE=neondb
 DB_USERNAME=neondb_owner
-DB_PASSWORD=npg_dO5TDH1mkYbU
+DB_PASSWORD=(replace with real value — keep in .env, NOT in git)
 DB_SSLMODE=require
 DB_NEON_ENDPOINT=ep-lingering-bird-adya0a8a
 
