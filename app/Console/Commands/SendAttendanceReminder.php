@@ -19,7 +19,7 @@ class SendAttendanceReminder extends Command
         $now = Carbon::now('Asia/Jakarta');
         $hour = $now->hour;
         $minute = $now->minute;
-        $isSaturday = $now->isDay(Carbon::SATURDAY);
+        $isSaturday = $now->isSaturday();
 
         $activeEmployees = Employee::where('is_active', true)
             ->with('user', 'schedule')

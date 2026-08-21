@@ -15,7 +15,7 @@
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
         "php-open-source-saver/jwt-auth": "^2.9",
-        "spatie/laravel-activitylog": "^4.0",
+        "spatie/laravel-activitylog": "^4.0|^5.0",
         "spatie/laravel-permission": "^8.3"
     },
     "require-dev": {
