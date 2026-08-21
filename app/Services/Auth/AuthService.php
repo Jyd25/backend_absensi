@@ -67,7 +67,11 @@ class AuthService extends BaseService
             ];
         }
 
-        $token = JWTAuth::attempt($credentials);
+        $rememberMe = $request->boolean('remember_me');
+
+        $ttl = $rememberMe ? 43200 : 60;
+
+        $token = JWTAuth::factory()->setTTL($ttl)->attempt($credentials);
 
         if (!$token) {
             event(new LoginFailed($request->email));
@@ -97,7 +101,8 @@ class AuthService extends BaseService
             'data' => [
                 'user' => $user,
                 'token' => $token,
-                'expires_in' => JWTAuth::factory()->getTTL() * 60,
+                'expires_in' => $ttl * 60,
+                'remember_me' => $rememberMe,
             ],
         ];
     }
