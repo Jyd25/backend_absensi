@@ -45,6 +45,7 @@ class AuthController extends Controller
         return $this->successResponse([
             'user' => $userResource,
             'token' => new TokenResource($tokenData),
+            'remember_me' => $request->boolean('remember_me'),
         ], $result['message'], 200);
     }
 
@@ -61,10 +62,10 @@ class AuthController extends Controller
 
     public function refresh(Request $request): JsonResponse
     {
-        $result = $this->authService->refresh($request->user());
+        $result = $this->authService->refresh($request);
 
         if (!$result['success']) {
-            return $this->errorResponse($result['message'], 500);
+            return $this->errorResponse($result['message'], 401);
         }
 
         $tokenData = [

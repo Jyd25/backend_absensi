@@ -11,9 +11,13 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
 use App\Repositories\Auth\AuthRepository;
 use App\Services\BaseService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use PHPOpenSourceSaver\JWTAuth\Manager as JWTManager;
+use PHPOpenSourceSaver\JWTAuth\Token as JWTToken;
 
 class AuthService extends BaseService
 {
@@ -71,9 +75,11 @@ class AuthService extends BaseService
 
         $ttl = $rememberMe ? 43200 : 60;
 
-        $token = JWTAuth::factory()->setTTL($ttl)->attempt($credentials);
+        JWTAuth::factory()->setTTL($ttl);
 
-        if (!$token) {
+        $token = JWTAuth::attempt($credentials);
+
+        if (!$token || !is_string($token)) {
             event(new LoginFailed($request->email));
 
             return [
@@ -126,18 +132,46 @@ class AuthService extends BaseService
         }
     }
 
-    public function refresh(User $user): array
+    public function refresh(Request $request): array
     {
         try {
-            $token = JWTAuth::parseToken()->refresh();
+            $tokenString = $request->bearerToken();
+
+            if (!$tokenString) {
+                return [
+                    'success' => false,
+                    'message' => 'Token not provided.',
+                ];
+            }
+
+            $manager = app(JWTManager::class);
+            $token = new JWTToken($tokenString);
+
+            $payload = $manager->setRefreshFlow()->decode($token);
+
+            $user = User::find($payload->get('sub'));
+
+            if (!$user || $user->status->value !== 'active') {
+                return [
+                    'success' => false,
+                    'message' => 'Your account is not active. Please contact administrator.',
+                ];
+            }
+
+            $newToken = $manager->refresh($token);
 
             return [
                 'success' => true,
                 'message' => 'Token refreshed successfully.',
                 'data' => [
-                    'token' => $token,
+                    'token' => $newToken->get(),
                     'expires_in' => JWTAuth::factory()->getTTL() * 60,
                 ],
+            ];
+        } catch (JWTException $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage() ?: 'Failed to refresh token.',
             ];
         } catch (\Exception $e) {
             return [

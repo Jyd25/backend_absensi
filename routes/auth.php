@@ -15,10 +15,10 @@ Route::prefix('v1/auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
 
     Route::middleware(['jwt', 'status'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
-        Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::get('/profile', [AuthController::class, 'profile']);
         Route::put('/change-password', [AuthController::class, 'changePassword']);
         Route::put('/profile', [AuthController::class, 'updateProfile']);
