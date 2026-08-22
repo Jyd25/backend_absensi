@@ -123,8 +123,8 @@ class DashboardController extends Controller
             $result['today_absent_list'] = $absentEmployees->values();
         }
 
-        // Guru/Karyawan: own attendance detail
-        if (in_array($roleName, ['Guru', 'Karyawan']) && $user->employee_id) {
+        // Own attendance detail & work schedule (all roles with employee)
+        if ($user->employee_id) {
             $myAttendance = DB::table('attendances')
                 ->where('employee_id', $user->employee_id)
                 ->whereDate('check_in_time', $today)
