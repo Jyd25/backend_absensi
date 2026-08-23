@@ -9,16 +9,16 @@ use App\Enums\LocationStatus;
 use App\Models\Attendance;
 use App\Models\AttendanceLocation;
 use App\Models\Employee;
-use App\Services\HolidayService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
 class JulyAttendanceDemoSeeder extends Seeder
 {
     /**
-     * Demo data: fill July 2026 with realistic attendance records for every
-     * active employee so report export/email can be tested end-to-end.
-     * Idempotent: existing records are never duplicated.
+     * Demo data: fill 1-31 July 2026 with attendance records for every
+     * active employee — all "Hadir" with randomized clock in/out times,
+     * so the export + bulk email report can be demoed end-to-end.
+     * Re-running wipes and rebuilds July data for a clean full month.
      */
     public function run(): void
     {
@@ -35,17 +35,19 @@ class JulyAttendanceDemoSeeder extends Seeder
             return;
         }
 
+        // Clean rebuild of July scope
+        $deleted = Attendance::where(function ($q) use ($year, $month) {
+            $q->whereBetween('check_in_time', [Carbon::create($year, $month, 1)->startOfDay(), Carbon::create($year, $month, Carbon::createFromDate($year, $month, 1)->daysInMonth)->endOfDay()])
+                ->orWhere(function ($q2) use ($year, $month) {
+                    $q2->whereNull('check_in_time')
+                        ->whereBetween('check_out_time', [Carbon::create($year, $month, 1)->startOfDay(), Carbon::create($year, $month, Carbon::createFromDate($year, $month, 1)->daysInMonth)->endOfDay()]);
+                });
+        })->delete();
+
         $created = 0;
-        $skipped = 0;
 
         foreach (range(1, $daysInMonth) as $day) {
             $date = Carbon::createFromDate($year, $month, $day);
-
-            // Skip Sundays and registered holidays
-            if (HolidayService::isSunday($date) || HolidayService::holidayOn($date)) {
-                continue;
-            }
-
             $isSaturday = $date->isSaturday();
 
             foreach ($employees as $employee) {
@@ -54,78 +56,24 @@ class JulyAttendanceDemoSeeder extends Seeder
                 if ($isSaturday && $schedule?->saturday_start_time) {
                     $startTime = $schedule->saturday_start_time;
                     $endTime = $schedule->saturday_end_time ?? $startTime;
-                    $tolerance = $schedule->tolerance_minutes ?? 0;
                 } elseif ($schedule?->start_time) {
                     $startTime = $schedule->start_time;
                     $endTime = $schedule->end_time;
-                    $tolerance = $schedule->tolerance_minutes ?? 0;
                 } else {
                     $startTime = '07:15';
                     $endTime = '16:00';
-                    $tolerance = 15;
                 }
 
                 $startAt = Carbon::parse($date->toDateString() . ' ' . substr($startTime, 0, 5), 'Asia/Jakarta');
                 $endAt = Carbon::parse($date->toDateString() . ' ' . substr($endTime, 0, 5), 'Asia/Jakarta');
 
-                $alreadyExists = Attendance::where('employee_id', $employee->id)
-                    ->whereDate('check_in_time', $date->toDateString())
-                    ->exists();
-
-                if ($alreadyExists) {
-                    $skipped++;
-
-                    continue;
-                }
-
-                // Deterministic pseudo-random distribution per employee/day
+                // Deterministic pseudo-random jitter per employee/day
                 $seed = crc32("{$employee->id}-{$date->toDateString()}");
                 mt_srand($seed);
-                $pick = mt_rand(1, 100);
-                $jitter = fn (int $min, int $max) => mt_rand($min, $max);
-
-                if ($pick <= 68) {
-                    [$status, $checkIn, $checkOut] = [
-                        AttendanceStatus::Present,
-                        $startAt->copy()->subMinutes($jitter(5, 25)),
-                        $endAt->copy()->addMinutes($jitter(5, 40)),
-                    ];
-                    $remarks = null;
-                } elseif ($pick <= 84) {
-                    [$status, $checkIn, $checkOut] = [
-                        AttendanceStatus::Late,
-                        $startAt->copy()->addMinutes($tolerance + $jitter(3, 30)),
-                        $endAt->copy()->addMinutes($jitter(0, 25)),
-                    ];
-                    $remarks = 'Terlambat ' . $jitter(5, 35) . ' menit';
-                } elseif ($pick <= 91) {
-                    [$status, $checkIn, $checkOut] = [
-                        AttendanceStatus::Permission,
-                        $startAt->copy()->subMinutes($jitter(10, 20)),
-                        $endAt->copy()->subMinutes($jitter(120, 200)),
-                    ];
-                    $remarks = 'Izin keperluan keluarga';
-                } elseif ($pick <= 96) {
-                    [$status, $checkIn, $checkOut] = [
-                        AttendanceStatus::Sick,
-                        $startAt->copy()->subMinutes($jitter(10, 20)),
-                        $endAt->copy()->subMinutes($jitter(150, 240)),
-                    ];
-                    $remarks = 'Sakit — surat keterangan menyusul';
-                } else {
-                    [$status, $checkIn, $checkOut] = [
-                        AttendanceStatus::Leave,
-                        $startAt->copy(),
-                        $endAt->copy()->subHour(),
-                    ];
-                    $remarks = 'Cuti tahunan';
-                }
-
-                $checkoutEarlyMinutes = $checkOut->diffInMinutes($endAt, false);
-                $statusCheckout = $checkoutEarlyMinutes >= 15 ? 'Pulang Cepat' : 'Pulang Tepat Waktu';
-
-                $latJitter = $location ? mt_rand(-80, 80) / 1e6 : 0;
-                $lngJitter = $location ? mt_rand(-80, 80) / 1e6 : 0;
+                $checkIn = $startAt->copy()->subMinutes(mt_rand(3, 25));
+                $checkOut = $endAt->copy()->addMinutes(mt_rand(5, 40));
+                $latJitter = mt_rand(-80, 80) / 1e6;
+                $lngJitter = mt_rand(-80, 80) / 1e6;
 
                 Attendance::create([
                     'employee_id' => $employee->id,
@@ -140,13 +88,13 @@ class JulyAttendanceDemoSeeder extends Seeder
                     'face_score' => mt_rand(88, 99) + (mt_rand(0, 9) / 10),
                     'location_status' => LocationStatus::InsideRadius->value,
                     'face_status' => FaceStatus::Matched->value,
-                    'attendance_status' => $status->value,
+                    'attendance_status' => AttendanceStatus::Present->value,
                     'device' => 'Web',
                     'ip_address' => '127.0.0.' . ($seed % 254 + 1),
                     'address' => 'Jl. Rancamaya No.30, Bogor',
                     'checkout_address' => 'Jl. Rancamaya No.30, Bogor',
-                    'status_checkout' => $statusCheckout,
-                    'remarks' => $remarks,
+                    'status_checkout' => 'Pulang Tepat Waktu',
+                    'remarks' => null,
                 ]);
 
                 $created++;
@@ -155,6 +103,6 @@ class JulyAttendanceDemoSeeder extends Seeder
 
         mt_srand();
 
-        $this->command->info("Demo kehadiran Juli {$year}: {$created} record dibuat, {$skipped} dilewati (sudah ada).");
+        $this->command->info("Demo kehadiran Juli {$year}: {$deleted} record lama dihapus, {$created} record 'Hadir' dibuat (semua karyawan, tanggal 1-31).");
     }
 }
