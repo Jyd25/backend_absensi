@@ -15,9 +15,9 @@ use Illuminate\Database\Seeder;
 class JulyAttendanceDemoSeeder extends Seeder
 {
     /**
-     * Demo data: fill 1-31 July 2026 with attendance records for every
-     * active employee — all "Hadir" with randomized clock in/out times,
-     * so the export + bulk email report can be demoed end-to-end.
+     * Demo data: fill 1-31 July 2026 for every active employee following
+     * the school rhythm — Mon-Fri 07:00-16:00, Sat 08:00-12:00 (all
+     * "Hadir" with randomized clock in/out), Sundays filled as "Libur".
      * Re-running wipes and rebuilds July data for a clean full month.
      */
     public function run(): void
@@ -49,23 +49,36 @@ class JulyAttendanceDemoSeeder extends Seeder
         foreach (range(1, $daysInMonth) as $day) {
             $date = Carbon::createFromDate($year, $month, $day);
             $isSaturday = $date->isSaturday();
+            $isSunday = $date->isSunday();
 
             foreach ($employees as $employee) {
-                // Schedule-aware working hours (Saturday variants included)
                 $schedule = $employee->schedule;
-                if ($isSaturday && $schedule?->saturday_start_time) {
-                    $startTime = $schedule->saturday_start_time;
-                    $endTime = $schedule->saturday_end_time ?? $startTime;
-                } elseif ($schedule?->start_time) {
-                    $startTime = $schedule->start_time;
-                    $endTime = $schedule->end_time;
-                } else {
-                    $startTime = '07:15';
-                    $endTime = '16:00';
+
+                // Sunday = holiday record (auto-filled Libur)
+                if ($isSunday) {
+                    Attendance::create([
+                        'employee_id' => $employee->id,
+                        'schedule_id' => $schedule?->id,
+                        'attendance_type' => AttendanceType::CheckIn->value,
+                        'check_in_time' => $date->copy()->startOfDay(),
+                        'attendance_status' => AttendanceStatus::Libur->value,
+                        'remarks' => 'Hari libur otomatis (Hari Minggu)',
+                    ]);
+
+                    $created++;
+
+                    continue;
                 }
 
-                $startAt = Carbon::parse($date->toDateString() . ' ' . substr($startTime, 0, 5), 'Asia/Jakarta');
-                $endAt = Carbon::parse($date->toDateString() . ' ' . substr($endTime, 0, 5), 'Asia/Jakarta');
+                // Working hours: Mon-Fri 07:00-16:00, Sat 08:00-12:00
+                if ($isSaturday) {
+                    [$startTime, $endTime] = ['08:00', '12:00'];
+                } else {
+                    [$startTime, $endTime] = ['07:00', '16:00'];
+                }
+
+                $startAt = Carbon::parse($date->toDateString() . ' ' . $startTime, 'Asia/Jakarta');
+                $endAt = Carbon::parse($date->toDateString() . ' ' . $endTime, 'Asia/Jakarta');
 
                 // Deterministic pseudo-random jitter per employee/day
                 $seed = crc32("{$employee->id}-{$date->toDateString()}");
@@ -103,6 +116,6 @@ class JulyAttendanceDemoSeeder extends Seeder
 
         mt_srand();
 
-        $this->command->info("Demo kehadiran Juli {$year}: {$deleted} record lama dihapus, {$created} record 'Hadir' dibuat (semua karyawan, tanggal 1-31).");
+        $this->command->info("Demo kehadiran Juli {$year}: {$deleted} record lama dihapus, {$created} record dibuat (Sen-Jum 07:00-16:00, Sab 08:00-12:00 semua Hadir, Minggu Libur).");
     }
 }
