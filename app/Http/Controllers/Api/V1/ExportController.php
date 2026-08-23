@@ -3,15 +3,24 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\Attendance;
+use App\Mail\AttendanceReportMail;
+use App\Models\User;
+use App\Services\AttendanceReportService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class ExportController extends Controller
 {
     use ApiResponse;
+
+    protected AttendanceReportService $reportService;
+
+    public function __construct(AttendanceReportService $reportService)
+    {
+        $this->reportService = $reportService;
+    }
 
     public function attendance(Request $request): JsonResponse
     {
@@ -27,55 +36,66 @@ class ExportController extends Controller
             'format' => 'required|in:pdf,excel',
         ]);
 
-        $query = Attendance::with(['employee.department', 'employee.position', 'location'])
-            ->where(function ($q) use ($request) {
-                $q->whereBetween(DB::raw('DATE(check_in_time)'), [$request->start_date, $request->end_date])
-                    ->orWhere(function ($q2) use ($request) {
-                        $q2->whereNull('check_in_time')
-                            ->whereBetween(DB::raw('DATE(check_out_time)'), [$request->start_date, $request->end_date]);
-                    });
-            });
+        $data = $this->reportService->build(
+            $request->start_date,
+            $request->end_date,
+            $request->department_id ? (int) $request->department_id : null
+        );
 
-        if ($request->department_id) {
-            $query->whereHas('employee', fn ($q) => $q->where('department_id', $request->department_id));
+        return $this->successResponse($data);
+    }
+
+    /**
+     * Queue the attendance report to every active user via email.
+     */
+    public function emailAttendance(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!in_array($user->role?->name, ['Administrator', 'Pimpinan'])) {
+            return $this->errorResponse('Akses ditolak', 403);
         }
 
-        $attendances = $query->orderBy('check_in_time')->get();
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'department_id' => 'nullable|exists:departments,id',
+            'format' => 'required|in:pdf,excel',
+        ]);
 
-        $grouped = $attendances->groupBy(fn ($a) => $a->employee?->name ?? 'Unknown')
-            ->map(function ($records, $name) {
-                $employee = $records->first()->employee;
-                return [
-                    'name' => $name,
-                    'nik' => $employee?->nik ?? '-',
-                    'department' => $employee->department?->name ?? '-',
-                    'position' => $employee->position?->name ?? '-',
-                    'records' => $records->map(fn ($a) => [
-                        'date' => $a->check_in_time ? \Carbon\Carbon::parse($a->check_in_time)->format('d/m/Y') : ($a->check_out_time ? \Carbon\Carbon::parse($a->check_out_time)->format('d/m/Y') : '-'),
-                        'check_in' => $a->check_in_time ? \Carbon\Carbon::parse($a->check_in_time)->format('H:i') : '-',
-                        'check_out' => $a->check_out_time ? \Carbon\Carbon::parse($a->check_out_time)->format('H:i') : '-',
-                        'status' => match($a->attendance_status?->value ?? $a->attendance_status) {
-                            'present' => 'Hadir',
-                            'late' => 'Terlambat',
-                            'absent' => 'Alpha',
-                            'permission' => 'Izin',
-                            'sick' => 'Sakit',
-                            default => $a->attendance_status?->label() ?? $a->attendance_status ?? '-',
-                        },
-                        'status_checkout' => $a->status_checkout ?? '-',
-                        'checkin_address' => $a->address ?? '-',
-                        'checkout_address' => $a->checkout_address ?? '-',
-                        'location' => $a->location?->location_name ?? '-',
-                        'face' => $a->face_status?->value === 'matched' ? 'Ya' : 'Tidak',
-                        'remarks' => $a->remarks ?? '-',
-                    ])->toArray(),
-                ];
-            });
+        $report = $this->reportService->build(
+            $request->start_date,
+            $request->end_date,
+            $request->department_id ? (int) $request->department_id : null
+        );
+
+        if (empty($report['items'])) {
+            return $this->errorResponse('Tidak ada data kehadiran pada periode ini — email tidak dikirim.', 422);
+        }
+
+        $recipients = User::query()
+            ->where('status', 'active')
+            ->whereNotNull('email')
+            ->orderBy('id')
+            ->get(['id', 'name', 'email']);
+
+        if ($recipients->isEmpty()) {
+            return $this->errorResponse('Tidak ada user aktif untuk menerima email.', 422);
+        }
+
+        foreach ($recipients as $recipient) {
+            Mail::to($recipient->email)->queue(
+                new AttendanceReportMail(
+                    $report,
+                    $request->format,
+                    $recipient->name
+                )
+            );
+        }
 
         return $this->successResponse([
-            'title' => 'Laporan Kehadiran',
-            'period' => $request->start_date . ' s/d ' . $request->end_date,
-            'items' => $grouped->values(),
-        ]);
+            'queued_count' => $recipients->count(),
+            'period' => $report['period'],
+            'format' => $request->format,
+        ], "Email laporan sedang dikirim ke {$recipients->count()} user.");
     }
 }

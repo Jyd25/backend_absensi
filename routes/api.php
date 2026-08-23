@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\FaceController;
 use App\Http\Controllers\Api\V1\FaceUpdateRequestController;
 use App\Http\Controllers\Api\V1\GeolocationController;
+use App\Http\Controllers\Api\V1\HolidayController;
 use App\Http\Controllers\Api\V1\LeaveController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ReportController;
@@ -71,6 +72,15 @@ Route::prefix('v1')->middleware(['jwt', 'status'])->group(function () {
 
     Route::prefix('export')->group(function () {
         Route::get('/attendance', [ExportController::class, 'attendance']);
+        Route::post('/attendance/email', [ExportController::class, 'emailAttendance']);
+    });
+
+    Route::prefix('holidays')->group(function () {
+        Route::get('/', [HolidayController::class, 'index']);
+        Route::get('/today', [HolidayController::class, 'today']);
+        Route::post('/', [HolidayController::class, 'store']);
+        Route::put('/{holiday}', [HolidayController::class, 'update']);
+        Route::delete('/{holiday}', [HolidayController::class, 'destroy']);
     });
 
     Route::prefix('face-update-requests')->group(function () {

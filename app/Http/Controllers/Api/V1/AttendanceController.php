@@ -8,6 +8,7 @@ use App\Http\Requests\Attendance\CheckOutRequest;
 use App\Http\Resources\AttendanceResource;
 use App\Models\Attendance;
 use App\Services\AttendanceService;
+use App\Services\HolidayService;
 use App\Traits\ApiResponse;
 use App\Traits\SendsNotifications;
 use Carbon\Carbon;
@@ -84,6 +85,12 @@ class AttendanceController extends Controller
     {
         $user = $request->user();
         $employeeId = $user->employee_id;
+
+        $holidayBlock = $this->rejectNonWorkingDay($employeeId);
+        if ($holidayBlock !== null) {
+            return $this->errorResponse($holidayBlock['message'], 422, $holidayBlock['meta']);
+        }
+
         $now = Carbon::now('Asia/Jakarta');
         $minute = $now->hour * 60 + $now->minute;
 
@@ -186,6 +193,11 @@ class AttendanceController extends Controller
 
         if (!$employeeId) {
             return $this->errorResponse('Profil karyawan tidak ditemukan.', 404);
+        }
+
+        $holidayBlock = $this->rejectNonWorkingDay($employeeId);
+        if ($holidayBlock !== null) {
+            return $this->errorResponse($holidayBlock['message'], 422, $holidayBlock['meta']);
         }
 
         $attendance = $this->attendanceService->getTodayByEmployee($employeeId);
@@ -307,5 +319,37 @@ class AttendanceController extends Controller
         $attendances = $this->attendanceService->getHistory($employeeId, $request, $canViewAll);
 
         return $this->paginatedResponse(AttendanceResource::collection($attendances));
+    }
+
+    /**
+     * Block presensi on Sundays and national/collective holidays and
+     * auto-fill a "libur" attendance record for the employee.
+     */
+    private function rejectNonWorkingDay(?int $employeeId): ?array
+    {
+        $today = Carbon::today();
+        $reason = HolidayService::nonWorkingReason($today);
+
+        if ($reason === null) {
+            return null;
+        }
+
+        if ($employeeId) {
+            HolidayService::markLibur(
+                $employeeId,
+                $today,
+                "Hari libur otomatis ({$reason['name']})"
+            );
+        }
+
+        return [
+            'message' => "Hari ini {$reason['name']} — presensi tidak diperlukan. Status otomatis terisi Libur.",
+            'meta' => [
+                'is_non_working_day' => true,
+                'reason' => $reason['reason'],
+                'holiday_name' => $reason['name'],
+                'status_filled' => 'libur',
+            ],
+        ];
     }
 }
