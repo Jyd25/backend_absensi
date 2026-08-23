@@ -12,10 +12,36 @@ use App\Traits\SendsNotifications;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AttendanceCorrectionController extends Controller
 {
     use ApiResponse, SendsNotifications;
+
+    /**
+     * Find the single attendance record belonging to a date, matching either
+     * check-in or check-out timestamps (records may have a NULL check_in_time,
+     * e.g. checkout-only or auto-filled holiday rows).
+     */
+    private function findAttendanceForDate(int $employeeId, ?string $dateStr, bool $lock = false): ?Attendance
+    {
+        if (!$dateStr) {
+            return null;
+        }
+
+        $query = Attendance::where('employee_id', $employeeId)
+            ->where(function ($q) use ($dateStr) {
+                $q->whereDate('check_in_time', $dateStr)
+                    ->orWhereDate('check_out_time', $dateStr)
+                    ->orWhereDate('created_at', $dateStr);
+            });
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        return $query->orderByRaw('CASE WHEN check_in_time IS NULL THEN 1 ELSE 0 END')->first();
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -49,9 +75,7 @@ class AttendanceCorrectionController extends Controller
             return $this->errorResponse('Akun anda tidak terkait data karyawan', 422);
         }
 
-        $attendance = Attendance::where('employee_id', $user->employee_id)
-            ->whereDate('check_in_time', $request->date)
-            ->first();
+        $attendance = $this->findAttendanceForDate($user->employee_id, $request->date);
 
         $correction = AttendanceCorrection::create([
             'employee_id' => $user->employee_id,
@@ -81,6 +105,11 @@ class AttendanceCorrectionController extends Controller
         }
 
         $correction = AttendanceCorrection::findOrFail($id);
+
+        if ($correction->status !== 'pending') {
+            return $this->errorResponse("Pengajuan ini sudah diproses sebelumnya ({$correction->status}) dan tidak dapat diproses ulang.", 422);
+        }
+
         $request->validate([
             'admin_note' => 'nullable|string',
             'check_in_time' => 'nullable|string',
@@ -102,47 +131,49 @@ class AttendanceCorrectionController extends Controller
 
         $employee = Employee::with('schedule')->find($correction->employee_id);
 
-        $attendance = null;
-        if ($correction->attendance_id) {
-            $attendance = Attendance::find($correction->attendance_id);
-        }
-        if (!$attendance) {
-            $attendance = Attendance::where('employee_id', $correction->employee_id)
-                ->whereDate('check_in_time', $dateStr)
-                ->first();
-        }
+        DB::transaction(function () use (&$attendance, $correction, $dateStr, $checkInTime, $checkOutTime, $employee) {
+            // Prefer the linked record, fall back to any record on that date —
+            // locked to prevent concurrent approvals creating duplicates.
+            $attendance = null;
+            if ($correction->attendance_id) {
+                $attendance = Attendance::where('id', $correction->attendance_id)->lockForUpdate()->first();
+            }
+            if (!$attendance) {
+                $attendance = $this->findAttendanceForDate($correction->employee_id, $dateStr, true);
+            }
 
-        if ($attendance) {
-            $updateData = [];
-            if ($checkInTime) {
-                $updateData['check_in_time'] = $dateStr . ' ' . $checkInTime . ':00';
+            if ($attendance) {
+                $updateData = [];
+                if ($checkInTime) {
+                    $updateData['check_in_time'] = $dateStr . ' ' . $checkInTime . ':00';
+                }
+                if ($checkOutTime) {
+                    $updateData['check_out_time'] = $dateStr . ' ' . $checkOutTime . ':00';
+                }
+                if (!empty($updateData)) {
+                    $attendance->update($updateData);
+                    $attendance->refresh();
+                    $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
+                }
+            } else {
+                $createData = [
+                    'employee_id' => $correction->employee_id,
+                    'attendance_type' => 'check_in',
+                    'attendance_status' => 'present',
+                    'remarks' => 'Approved correction by admin',
+                ];
+                if ($checkInTime) {
+                    $createData['check_in_time'] = $dateStr . ' ' . $checkInTime . ':00';
+                }
+                if ($checkOutTime) {
+                    $createData['check_out_time'] = $dateStr . ' ' . $checkOutTime . ':00';
+                }
+                if ($checkInTime || $checkOutTime) {
+                    $attendance = Attendance::create($createData);
+                    $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
+                }
             }
-            if ($checkOutTime) {
-                $updateData['check_out_time'] = $dateStr . ' ' . $checkOutTime . ':00';
-            }
-            if (!empty($updateData)) {
-                $attendance->update($updateData);
-                $attendance->refresh();
-                $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
-            }
-        } else {
-            $createData = [
-                'employee_id' => $correction->employee_id,
-                'attendance_type' => 'check_in',
-                'attendance_status' => 'present',
-                'remarks' => 'Approved correction by admin',
-            ];
-            if ($checkInTime) {
-                $createData['check_in_time'] = $dateStr . ' ' . $checkInTime . ':00';
-            }
-            if ($checkOutTime) {
-                $createData['check_out_time'] = $dateStr . ' ' . $checkOutTime . ':00';
-            }
-            if ($checkInTime || $checkOutTime) {
-                $attendance = Attendance::create($createData);
-                $this->recalculateAttendanceStatus($attendance, $employee?->schedule);
-            }
-        }
+        });
 
         $correction->update([
             'status' => 'approved',
@@ -209,6 +240,11 @@ class AttendanceCorrectionController extends Controller
         }
 
         $correction = AttendanceCorrection::findOrFail($id);
+
+        if ($correction->status !== 'pending') {
+            return $this->errorResponse("Pengajuan ini sudah diproses sebelumnya ({$correction->status}) dan tidak dapat diproses ulang.", 422);
+        }
+
         $request->validate([
             'admin_note' => 'required|string',
         ]);
