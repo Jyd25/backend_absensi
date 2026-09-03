@@ -161,8 +161,29 @@ class AttendanceService extends BaseService
                 $attendance = Attendance::findOrFail($attendanceId);
 
                 $checkOutTime = now();
+
+                $checkoutDistance = null;
+                $checkoutLocationStatus = null;
+                if (!empty($data['latitude']) && !empty($data['longitude']) && $attendance->location) {
+                    $checkoutDistance = $this->calculateDistance(
+                        $data['latitude'],
+                        $data['longitude'],
+                        $attendance->location->latitude,
+                        $attendance->location->longitude
+                    );
+                    $checkoutLocationStatus = $checkoutDistance <= ($attendance->location->radius ?? 0)
+                        ? LocationStatus::InsideRadius
+                        : LocationStatus::OutsideRadius;
+                }
+
                 $attendance->update([
                     'check_out_time' => $checkOutTime,
+                    'checkout_latitude' => $data['latitude'] ?? null,
+                    'checkout_longitude' => $data['longitude'] ?? null,
+                    'checkout_distance' => $checkoutDistance,
+                    'checkout_location_status' => $checkoutLocationStatus?->value,
+                    'checkout_face_status' => $data['face_status'] ?? null,
+                    'checkout_face_score' => $data['face_score'] ?? null,
                     'face_score' => $data['face_score'] ?? $attendance->face_score,
                     'face_status' => $data['face_status'] ?? $attendance->face_status,
                     'photo_data' => $data['photo_data'] ?? $attendance->photo_data,
