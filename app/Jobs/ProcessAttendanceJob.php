@@ -76,9 +76,8 @@ class ProcessAttendanceJob implements ShouldQueue
     {
         $checkInTime = \Carbon\Carbon::parse($attendance->check_in_time);
         $scheduleStart = \Carbon\Carbon::parse($schedule->start_time);
-        $toleranceMinutes = $schedule->tolerance_minutes;
 
-        $lateThreshold = $scheduleStart->copy()->addMinutes($toleranceMinutes);
+        $lateThreshold = $scheduleStart;
 
         if ($checkInTime->gt($lateThreshold)) {
             return \App\Enums\AttendanceStatus::Late;

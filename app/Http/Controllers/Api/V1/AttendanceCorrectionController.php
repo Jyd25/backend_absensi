@@ -205,10 +205,8 @@ class AttendanceCorrectionController extends Controller
 
         $scheduleStart = null;
         $scheduleEnd = null;
-        $tolerance = 0;
 
         if ($schedule) {
-            $tolerance = $schedule->tolerance_minutes ?? 0;
             if ($isSaturday && $schedule->saturday_start_time) {
                 $scheduleStart = $schedule->saturday_start_time instanceof Carbon ? $schedule->saturday_start_time : Carbon::parse($schedule->saturday_start_time);
                 $scheduleEnd = $schedule->saturday_end_time instanceof Carbon ? $schedule->saturday_end_time : Carbon::parse($schedule->saturday_end_time);
@@ -219,7 +217,7 @@ class AttendanceCorrectionController extends Controller
         }
 
         if ($scheduleStart) {
-            $lateThreshold = $scheduleStart->copy()->addMinutes($tolerance);
+            $lateThreshold = $scheduleStart;
             $checkInMin = $checkInTime->copy()->setHour($scheduleStart->hour)->setMinute($scheduleStart->minute);
             $attendance->attendance_status = $checkInTime->gt($lateThreshold) ? 'late' : 'present';
             $attendance->save();

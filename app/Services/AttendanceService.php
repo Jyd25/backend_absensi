@@ -107,12 +107,11 @@ class AttendanceService extends BaseService
                     $scheduleStart = Carbon::parse($schedule->start_time);
                 }
 
-                $tolerance = $schedule->tolerance_minutes ?? 0;
-                $lateThreshold = $scheduleStart->copy()->addMinutes($tolerance);
+                $lateThreshold = $scheduleStart;
 
                 if ($checkInTime->gt($lateThreshold)) {
                     $attendanceStatus = AttendanceStatus::Late;
-                    $lateMinutes = $scheduleStart->diffInMinutes($checkInTime) - $tolerance;
+                    $lateMinutes = $scheduleStart->diffInMinutes($checkInTime);
                 }
             }
 

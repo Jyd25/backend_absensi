@@ -168,7 +168,7 @@ class DashboardController extends Controller
                 }
 
                 $startCarbon = $s->start_time instanceof \Carbon\Carbon ? $s->start_time : Carbon::parse($scheduleStart);
-                $presensiDeadline = $startCarbon->copy()->addMinutes($toleranceMinutes)->format('H:i');
+                $presensiDeadline = $startCarbon->format('H:i');
             }
 
             $result['my_attendance'] = $myAttendance ? [
@@ -291,11 +291,10 @@ class DashboardController extends Controller
             $scheduleStart = Carbon::parse($schedule->start_time);
         }
 
-        $tolerance = $schedule->tolerance_minutes ?? 0;
-        $lateThreshold = $scheduleStart->copy()->addMinutes($tolerance);
+        $lateThreshold = $scheduleStart;
 
         if ($checkIn->gt($lateThreshold)) {
-            return max(0, $scheduleStart->diffInMinutes($checkIn) - $tolerance);
+            return max(0, $scheduleStart->diffInMinutes($checkIn));
         }
 
         return 0;
