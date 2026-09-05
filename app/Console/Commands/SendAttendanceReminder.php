@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Console\Commands;
 
@@ -60,7 +60,7 @@ class SendAttendanceReminder extends Command
                 if ($currentMinutes >= $remindBefore && $currentMinutes < $startHour * 60 + $startMinute) {
                     $cacheKey = "reminder_ci_30_{$employee->id}_{$now->toDateString()}";
                     if (!\Cache::has($cacheKey)) {
-                        SendNotificationJob::dispatch(
+                        SendNotificationJob::dispatchSync(
                             $userId,
                             'Pengingat Check-In',
                             '30 menit lagi waktu masuk dimulai. Siapkan diri untuk absen!',
@@ -74,7 +74,7 @@ class SendAttendanceReminder extends Command
                 if ($hour === $startHour && $minute === $startMinute) {
                     $cacheKey = "reminder_ci_start_{$employee->id}_{$now->toDateString()}";
                     if (!\Cache::has($cacheKey)) {
-                        SendNotificationJob::dispatch(
+                        SendNotificationJob::dispatchSync(
                             $userId,
                             'Waktu Check-In',
                             'Waktu masuk sudah dimulai! Segera lakukan check-in.',
@@ -89,7 +89,7 @@ class SendAttendanceReminder extends Command
                 if ($currentMinutes >= $lateThreshold && $currentMinutes < $lateThreshold + 2) {
                     $cacheKey = "reminder_ci_late_{$employee->id}_{$now->toDateString()}";
                     if (!\Cache::has($cacheKey)) {
-                        SendNotificationJob::dispatch(
+                        SendNotificationJob::dispatchSync(
                             $userId,
                             'Anda Terlambat!',
                             'Anda belum check-in. Status akan tercatat sebagai Terlambat.',
@@ -107,7 +107,7 @@ class SendAttendanceReminder extends Command
                 if ($hour === $co1h && $minute === 0) {
                     $cacheKey = "reminder_co_1h_{$employee->id}_{$now->toDateString()}";
                     if (!\Cache::has($cacheKey)) {
-                        SendNotificationJob::dispatch(
+                        SendNotificationJob::dispatchSync(
                             $userId,
                             'Pengingat Check-Out',
                             '1 jam lagi sebelum waktu pulang. Jangan lupa check-out nanti!',
@@ -121,7 +121,7 @@ class SendAttendanceReminder extends Command
                 if ($hour === $endHour && $minute === 0) {
                     $cacheKey = "reminder_co_end_{$employee->id}_{$now->toDateString()}";
                     if (!\Cache::has($cacheKey)) {
-                        SendNotificationJob::dispatch(
+                        SendNotificationJob::dispatchSync(
                             $userId,
                             'Waktu Check-Out',
                             'Waktu pulang sudah tiba! Segera lakukan check-out.',
@@ -137,7 +137,7 @@ class SendAttendanceReminder extends Command
                 if ($currentMinutes >= $overdueThreshold && $currentMinutes < $overdueThreshold + 2) {
                     $cacheKey = "reminder_co_overdue_{$employee->id}_{$now->toDateString()}";
                     if (!\Cache::has($cacheKey)) {
-                        SendNotificationJob::dispatch(
+                        SendNotificationJob::dispatchSync(
                             $userId,
                             'Check-Out Terlewat!',
                             'Anda belum check-out. Segera check-out untuk menghindari status Alpha.',

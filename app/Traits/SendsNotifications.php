@@ -13,13 +13,13 @@ trait SendsNotifications
         $admins = User::whereHas('role', fn($q) => $q->where('name', 'Administrator'))->get();
 
         foreach ($admins as $admin) {
-            SendNotificationJob::dispatch($admin->id, $title, $message, $type, $data);
+            SendNotificationJob::dispatchSync($admin->id, $title, $message, $type, $data);
         }
     }
 
     protected function notifyUser(int $userId, string $title, string $message, string $type = 'info', array $data = []): void
     {
-        SendNotificationJob::dispatch($userId, $title, $message, $type, $data);
+        SendNotificationJob::dispatchSync($userId, $title, $message, $type, $data);
     }
 
     protected function notifyRole(string $roleName, string $title, string $message, string $type = 'info', array $data = []): void
@@ -27,7 +27,7 @@ trait SendsNotifications
         $users = User::whereHas('role', fn($q) => $q->where('name', $roleName))->get();
 
         foreach ($users as $user) {
-            SendNotificationJob::dispatch($user->id, $title, $message, $type, $data);
+            SendNotificationJob::dispatchSync($user->id, $title, $message, $type, $data);
         }
     }
 }

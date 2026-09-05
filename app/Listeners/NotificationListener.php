@@ -3,13 +3,9 @@
 namespace App\Listeners;
 
 use App\Events\NotificationCreated;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 
-class NotificationListener implements ShouldQueue
+class NotificationListener
 {
-    use InteractsWithQueue;
-
     public function handle(NotificationCreated $event): void
     {
         $notification = $event->notification;
