@@ -49,6 +49,29 @@ class AuthController extends Controller
         ], $result['message'], 200);
     }
 
+    public function guest(): JsonResponse
+    {
+        $result = $this->authService->guestLogin();
+
+        if (!$result['success']) {
+            return $this->errorResponse($result['message'], 401);
+        }
+
+        $userResource = new UserResource($result['data']['user']);
+        $tokenData = [
+            'access_token' => $result['data']['token'],
+            'refresh_token' => $result['data']['token'],
+            'expires_in' => $result['data']['expires_in'],
+            'token_type' => 'Bearer',
+        ];
+
+        return $this->successResponse([
+            'user' => $userResource,
+            'token' => new TokenResource($tokenData),
+            'remember_me' => false,
+        ], $result['message'], 200);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $result = $this->authService->logout($request->user());
