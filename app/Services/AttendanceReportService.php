@@ -52,6 +52,43 @@ class AttendanceReportService
         ];
     }
 
+    /**
+     * Build a single-employee attendance report for the per-user email feature.
+     */
+    public function buildForEmployee(int $employeeId, string $startDate, string $endDate, ?int $departmentId = null): array
+    {
+        $query = Attendance::with(['employee.department', 'employee.position', 'location'])
+            ->where('employee_id', $employeeId)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween(DB::raw('DATE(check_in_time)'), [$startDate, $endDate])
+                    ->orWhere(function ($q2) use ($startDate, $endDate) {
+                        $q2->whereNull('check_in_time')
+                            ->whereBetween(DB::raw('DATE(check_out_time)'), [$startDate, $endDate]);
+                    });
+            });
+
+        if ($departmentId) {
+            $query->whereHas('employee', fn ($q) => $q->where('department_id', $departmentId));
+        }
+
+        $attendances = $query->orderBy('check_in_time')->get();
+        $employee = $attendances->first()?->employee;
+
+        return [
+            'title' => 'Laporan Kehadiran',
+            'period' => $startDate . ' s/d ' . $endDate,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'items' => [[
+                'name' => $employee?->name ?? '-',
+                'nik' => $employee?->nik ?? '-',
+                'department' => $employee?->department?->name ?? '-',
+                'position' => $employee?->position?->name ?? '-',
+                'records' => $attendances->map(fn ($a) => $this->mapRecord($a))->toArray(),
+            ]],
+        ];
+    }
+
     private function mapRecord($a): array
     {
         $statusValue = $a->attendance_status?->value ?? $a->attendance_status;

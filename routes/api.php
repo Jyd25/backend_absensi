@@ -75,6 +75,9 @@ Route::prefix('v1')->middleware(['jwt', 'status'])->group(function () {
     Route::prefix('export')->group(function () {
         Route::get('/attendance', [ExportController::class, 'attendance']);
         Route::post('/attendance/email', [ExportController::class, 'emailAttendance']);
+        Route::get('/emails/status', [ExportController::class, 'emailStatus']);
+        Route::post('/emails/send', [ExportController::class, 'sendEmails']);
+        Route::post('/emails/{emailReport}/resend', [ExportController::class, 'resendEmail']);
     });
 
     Route::prefix('holidays')->group(function () {
