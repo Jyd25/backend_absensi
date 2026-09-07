@@ -2,9 +2,11 @@
 
 namespace App\Listeners;
 
+use App\Events\DashboardBroadcast;
 use App\Events\DashboardUpdated;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Log;
 
 class DashboardListener implements ShouldQueue
 {
@@ -12,9 +14,10 @@ class DashboardListener implements ShouldQueue
 
     public function handle(DashboardUpdated $event): void
     {
-        broadcast()->event('dashboard', [
-            'type' => 'dashboard_updated',
-            'timestamp' => now()->toISOString(),
-        ]);
+        try {
+            broadcast(new DashboardBroadcast(['timestamp' => now()->toISOString()]));
+        } catch (\Throwable $e) {
+            Log::error('DashboardListener gagal: ' . $e->getMessage(), ['exception' => $e]);
+        }
     }
 }
