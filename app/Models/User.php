@@ -64,7 +64,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function scopeActive($query)
     {
-        return $query->where('status', UserStatus::ACTIVE);
+        return $query->where('status', UserStatus::Active->value);
     }
 
     public function scopeByRole($query, $role)
