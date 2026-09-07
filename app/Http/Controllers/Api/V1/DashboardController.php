@@ -33,7 +33,13 @@ class DashboardController extends Controller
         $totalEmployees = $query->count();
 
         $attendanceQuery = DB::table('attendances')
-            ->whereDate('check_in_time', $today);
+            ->where(function ($q) use ($today) {
+                $q->whereDate('check_in_time', $today)
+                    ->orWhere(function ($q2) use ($today) {
+                        $q2->whereNull('check_in_time')
+                            ->whereDate('check_out_time', $today);
+                    });
+            });
 
         if (!$isAdminOrPimpinan) {
             $attendanceQuery->where('employee_id', $user->employee_id);
@@ -77,7 +83,13 @@ class DashboardController extends Controller
         // Pimpinan / Admin: attendance detail list
         if (in_array($roleName, ['Administrator', 'Pimpinan'])) {
             $todayAttendances = DB::table('attendances')
-                ->whereDate('check_in_time', $today)
+                ->where(function ($q) use ($today) {
+                    $q->whereDate('check_in_time', $today)
+                        ->orWhere(function ($q2) use ($today) {
+                            $q2->whereNull('check_in_time')
+                                ->whereDate('check_out_time', $today);
+                        });
+                })
                 ->get();
 
             $attendedIds = $todayAttendances->pluck('employee_id')->toArray();
@@ -95,7 +107,7 @@ class DashboardController extends Controller
                         'status' => $att->attendance_status,
                         'check_in_time' => $att->check_in_time,
                         'check_out_time' => $att->check_out_time,
-                        'late_minutes' => $att->attendance_status === AttendanceStatus::Late->value
+                        'late_minutes' => $att->attendance_status === AttendanceStatus::Late->value && $att->check_in_time
                             ? $this->calculateLateMinutes($att->check_in_time, $emp->schedule_id)
                             : 0,
                     ];
@@ -127,7 +139,13 @@ class DashboardController extends Controller
         if ($user->employee_id) {
             $myAttendance = DB::table('attendances')
                 ->where('employee_id', $user->employee_id)
-                ->whereDate('check_in_time', $today)
+                ->where(function ($q) use ($today) {
+                    $q->whereDate('check_in_time', $today)
+                        ->orWhere(function ($q2) use ($today) {
+                            $q2->whereNull('check_in_time')
+                                ->whereDate('check_out_time', $today);
+                        });
+                })
                 ->first();
 
             $employee = Employee::with('schedule', 'department')->find($user->employee_id);
@@ -210,7 +228,13 @@ class DashboardController extends Controller
         $days = [];
         for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
             $dayQuery = DB::table('attendances')
-                ->whereDate('check_in_time', $date);
+                ->where(function ($q) use ($date) {
+                    $q->whereDate('check_in_time', $date)
+                        ->orWhere(function ($q2) use ($date) {
+                            $q2->whereNull('check_in_time')
+                                ->whereDate('check_out_time', $date);
+                        });
+                });
 
             if (!$isAdminOrPimpinan) {
                 $dayQuery->where('employee_id', $user->employee_id);
@@ -239,7 +263,13 @@ class DashboardController extends Controller
         $endDate = $startDate->copy()->endOfMonth();
 
         $attendanceQuery = DB::table('attendances')
-            ->whereBetween('check_in_time', [$startDate, $endDate]);
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('check_in_time', [$startDate, $endDate])
+                    ->orWhere(function ($q2) use ($startDate, $endDate) {
+                        $q2->whereNull('check_in_time')
+                            ->whereBetween('check_out_time', [$startDate, $endDate]);
+                    });
+            });
 
         if (!$isAdminOrPimpinan) {
             $attendanceQuery->where('employee_id', $user->employee_id);
