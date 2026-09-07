@@ -68,6 +68,7 @@ Route::prefix('v1')->middleware(['jwt', 'status'])->group(function () {
         Route::post('/', [AttendanceCorrectionController::class, 'store']);
         Route::post('/{id}/approve', [AttendanceCorrectionController::class, 'approve']);
         Route::post('/{id}/reject', [AttendanceCorrectionController::class, 'reject']);
+        Route::delete('/{id}', [AttendanceCorrectionController::class, 'destroy']);
     });
 
     Route::prefix('export')->group(function () {

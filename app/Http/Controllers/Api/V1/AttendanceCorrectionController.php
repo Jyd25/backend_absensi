@@ -230,6 +230,24 @@ class AttendanceCorrectionController extends Controller
         }
     }
 
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $correction = AttendanceCorrection::findOrFail($id);
+        $user = $request->user();
+        $isAdmin = $user->role?->name === 'Administrator';
+
+        if (!$isAdmin && $correction->employee_id !== $user->employee_id) {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
+        if ($correction->status !== 'pending') {
+            return $this->errorResponse('Hanya pengajuan pending yang bisa dihapus', 422);
+        }
+
+        $correction->delete();
+        return $this->successResponse(null, 'Pengajuan perbaikan dihapus');
+    }
+
     public function reject(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
