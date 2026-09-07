@@ -235,8 +235,9 @@ class AttendanceCorrectionController extends Controller
         $correction = AttendanceCorrection::findOrFail($id);
         $user = $request->user();
         $isAdmin = $user->role?->name === 'Administrator';
+        $isPimpinan = $user->role?->name === 'Pimpinan';
 
-        if (!$isAdmin && $correction->employee_id !== $user->employee_id) {
+        if (!$isAdmin && !$isPimpinan) {
             return $this->errorResponse('Akses ditolak', 403);
         }
 
