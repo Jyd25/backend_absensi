@@ -75,16 +75,18 @@ class DeleteGuestData extends Command
         DB::transaction(function () use ($allUsers, $guestEmployees) {
             $userId = $allUsers->pluck('id');
 
-            $fkTables = [
-                'notifications' => 'user_id',
+            $deleteTables = ['notifications', 'email_reports'];
+            foreach ($deleteTables as $table) {
+                DB::table($table)->whereIn('user_id', $userId)->delete();
+            }
+
+            $nullTables = [
                 'login_logs' => 'user_id',
                 'api_logs' => 'user_id',
                 'activity_logs' => 'user_id',
                 'sessions' => 'user_id',
-                'email_reports' => 'user_id',
             ];
-
-            foreach ($fkTables as $table => $column) {
+            foreach ($nullTables as $table => $column) {
                 DB::table($table)->whereIn($column, $userId)->update([$column => null]);
             }
 
