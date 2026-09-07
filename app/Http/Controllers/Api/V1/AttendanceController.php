@@ -304,6 +304,20 @@ class AttendanceController extends Controller
         );
     }
 
+    public function destroy(Request $request, Attendance $attendance): JsonResponse
+    {
+        $user = $request->user();
+        $roleName = $user->role?->name;
+
+        if (!in_array($roleName, ['Administrator', 'Pimpinan'])) {
+            return $this->errorResponse('Tidak memiliki akses.', 403);
+        }
+
+        $attendance->delete();
+
+        return $this->successResponse(null, 'Data kehadiran berhasil dihapus.');
+    }
+
     public function history(Request $request): JsonResponse
     {
         $user = $request->user();
