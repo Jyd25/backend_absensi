@@ -73,6 +73,26 @@ class DeleteGuestData extends Command
         }
 
         DB::transaction(function () use ($allUsers, $guestEmployees) {
+            $userId = $allUsers->pluck('id');
+
+            $fkTables = [
+                'notifications' => 'user_id',
+                'login_logs' => 'user_id',
+                'api_logs' => 'user_id',
+                'activity_logs' => 'user_id',
+                'sessions' => 'user_id',
+                'email_reports' => 'user_id',
+            ];
+
+            foreach ($fkTables as $table => $column) {
+                DB::table($table)->whereIn($column, $userId)->update([$column => null]);
+            }
+
+            DB::table('attendance_histories')->whereIn('performed_by', $userId)->update(['performed_by' => null]);
+            DB::table('leave_requests')->whereIn('approved_by', $userId)->update(['approved_by' => null]);
+            DB::table('attendance_corrections')->whereIn('approved_by', $userId)->update(['approved_by' => null]);
+            DB::table('face_update_requests')->whereIn('approved_by', $userId)->update(['approved_by' => null]);
+
             foreach ($allUsers as $user) {
                 $user->forceDelete();
             }
