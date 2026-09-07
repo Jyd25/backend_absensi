@@ -74,26 +74,21 @@ class DeleteGuestData extends Command
 
         DB::transaction(function () use ($allUsers, $guestEmployees) {
             $userId = $allUsers->pluck('id');
+            $empId = $guestEmployees->pluck('id');
 
-            $deleteTables = ['notifications', 'email_reports'];
-            foreach ($deleteTables as $table) {
-                DB::table($table)->whereIn('user_id', $userId)->delete();
-            }
-
-            $nullTables = [
-                'login_logs' => 'user_id',
-                'api_logs' => 'user_id',
-                'activity_logs' => 'user_id',
-                'sessions' => 'user_id',
-            ];
-            foreach ($nullTables as $table => $column) {
-                DB::table($table)->whereIn($column, $userId)->update([$column => null]);
-            }
-
+            DB::table('login_logs')->whereIn('user_id', $userId)->update(['user_id' => null]);
+            DB::table('api_logs')->whereIn('user_id', $userId)->update(['user_id' => null]);
+            DB::table('activity_logs')->whereIn('user_id', $userId)->update(['user_id' => null]);
+            DB::table('sessions')->whereIn('user_id', $userId)->update(['user_id' => null]);
             DB::table('attendance_histories')->whereIn('performed_by', $userId)->update(['performed_by' => null]);
             DB::table('leave_requests')->whereIn('approved_by', $userId)->update(['approved_by' => null]);
             DB::table('attendance_corrections')->whereIn('approved_by', $userId)->update(['approved_by' => null]);
             DB::table('face_update_requests')->whereIn('approved_by', $userId)->update(['approved_by' => null]);
+
+            DB::table('notifications')->whereIn('user_id', $userId)->delete();
+            DB::table('email_reports')->whereIn('user_id', $userId)->delete();
+
+            DB::table('face_update_requests')->whereIn('employee_id', $empId)->delete();
 
             foreach ($allUsers as $user) {
                 $user->forceDelete();
