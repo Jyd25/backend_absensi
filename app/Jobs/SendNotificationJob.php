@@ -24,15 +24,19 @@ class SendNotificationJob implements ShouldQueue
 
     public function handle(): void
     {
-        $notification = Notification::create([
-            'user_id' => $this->userId,
-            'title' => $this->title,
-            'message' => $this->message,
-            'type' => $this->type,
-            'data' => $this->data,
-            'is_read' => false,
-        ]);
+        try {
+            $notification = Notification::create([
+                'user_id' => $this->userId,
+                'title' => $this->title,
+                'message' => $this->message,
+                'type' => $this->type,
+                'data' => $this->data,
+                'is_read' => false,
+            ]);
 
-        event(new \App\Events\NotificationCreated($notification));
+            event(new \App\Events\NotificationCreated($notification));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('SendNotificationJob gagal: ' . $e->getMessage(), ['exception' => $e]);
+        }
     }
 }
