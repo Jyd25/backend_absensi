@@ -125,14 +125,12 @@ class ExportController extends Controller
 
         $users = User::with('employee')
             ->active()
-            ->whereNotNull('employee_id')
             ->whereNotNull('email')
             ->orderBy('name')
-            ->get(['id', 'employee_id', 'name', 'email'])
-            ->filter(fn ($u) => $u->employee !== null);
+            ->get(['id', 'employee_id', 'name', 'email']);
 
         if ($request->department_id) {
-            $users = $users->filter(fn ($u) => (int) $u->employee->department_id === (int) $request->department_id);
+            $users = $users->filter(fn ($u) => $u->employee !== null && (int) $u->employee->department_id === (int) $request->department_id);
         }
 
         $userIds = $users->pluck('id')->toArray();
@@ -158,7 +156,7 @@ class ExportController extends Controller
             ->map(fn ($group) => $group->first());
 
         $items = $users->values()->map(function ($u) use ($counts, $reportsByUser) {
-            $recordsCount = (int) ($counts[$u->employee_id] ?? 0);
+            $recordsCount = $u->employee_id ? (int) ($counts[$u->employee_id] ?? 0) : 0;
             $report = $reportsByUser->get($u->id);
 
             return [
@@ -166,7 +164,7 @@ class ExportController extends Controller
                 'employee_id' => $u->employee_id,
                 'name' => $u->name,
                 'email' => $u->email,
-                'nik' => $u->employee->nik ?? '-',
+                'nik' => $u->employee?->nik ?? '-',
                 'records_count' => $recordsCount,
                 'has_attendance' => $recordsCount > 0,
                 'report_id' => $report?->id,
