@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/guest', [AuthController::class, 'guest']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     Route::post('/refresh', [AuthController::class, 'refresh']);

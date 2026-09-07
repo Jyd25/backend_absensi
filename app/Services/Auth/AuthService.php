@@ -8,12 +8,7 @@ use App\Events\PasswordChanged;
 use App\Events\UserLoggedIn;
 use App\Events\UserLoggedOut;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Models\Department;
-use App\Models\Employee;
-use App\Models\Position;
-use App\Models\Role;
 use App\Models\User;
-use App\Models\WorkSchedule;
 use App\Repositories\Auth\AuthRepository;
 use App\Services\BaseService;
 use Illuminate\Http\Request;
@@ -114,87 +109,6 @@ class AuthService extends BaseService
                 'token' => $token,
                 'expires_in' => $ttl * 60,
                 'remember_me' => $rememberMe,
-            ],
-        ];
-    }
-
-    public function guestLogin(): array
-    {
-        $email = 'tamu@scr.sch.id';
-
-        $user = User::where('email', $email)->first();
-
-        if (!$user) {
-            $role = Role::where('name', 'Guru')->first();
-            $department = Department::where('name', 'Akademik')->first();
-            $position = Position::where('name', 'Guru')->first();
-            $schedule = WorkSchedule::where('name', 'Akademik (Guru & Pimpinan)')->first();
-
-            if (!$role || !$department || !$position || !$schedule) {
-                return [
-                    'success' => false,
-                    'message' => 'Role atau referensi akun tamu belum tersedia. Jalankan php artisan db:seed terlebih dahulu.',
-                ];
-            }
-
-            $employee = Employee::where('email', $email)->first();
-
-            if (!$employee) {
-                $nik = 'TAMU001';
-                $sequence = 1;
-
-                while (Employee::withTrashed()->where('nik', $nik)->exists()) {
-                    $sequence++;
-                    $nik = 'TAMU' . str_pad((string) $sequence, 3, '0', STR_PAD_LEFT);
-                }
-
-                $employee = Employee::create([
-                    'nik' => $nik,
-                    'name' => 'Tamu',
-                    'gender' => 'male',
-                    'email' => $email,
-                    'department_id' => $department->id,
-                    'position_id' => $position->id,
-                    'schedule_id' => $schedule->id,
-                    'is_active' => true,
-                ]);
-            }
-
-            $user = User::create([
-                'role_id' => $role->id,
-                'employee_id' => $employee->id,
-                'name' => 'Tamu',
-                'email' => $email,
-                'password' => Hash::make(Str::random(16)),
-                'status' => 'active',
-            ]);
-
-            $user->syncRoles($role->name);
-        }
-
-        if ($user->status->value !== 'active') {
-            return [
-                'success' => false,
-                'message' => 'Your account is not active. Please contact administrator.',
-            ];
-        }
-
-        $ttl = 43200;
-
-        JWTAuth::factory()->setTTL($ttl);
-
-        $token = JWTAuth::fromUser($user);
-
-        $user->load(['role', 'employee.department', 'employee.position', 'employee.schedule', 'employee.primaryFace']);
-
-        return [
-            'success' => true,
-            'message' => 'Guest login successful.',
-            'data' => [
-                'user' => $user,
-                'token' => $token,
-                'expires_in' => $ttl * 60,
-                'remember_me' => false,
             ],
         ];
     }
