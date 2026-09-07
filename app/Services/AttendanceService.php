@@ -285,10 +285,15 @@ class AttendanceService extends BaseService
         }
 
         if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('check_in_time', [
-                $request->start_date,
-                $request->end_date . ' 23:59:59',
-            ]);
+            $query->where(function ($q) use ($request) {
+                $q->whereBetween('check_in_time', [
+                    $request->start_date,
+                    $request->end_date . ' 23:59:59',
+                ])->orWhereBetween('check_out_time', [
+                    $request->start_date,
+                    $request->end_date . ' 23:59:59',
+                ]);
+            });
         }
 
         if ($request->has('status')) {
