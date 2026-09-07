@@ -257,6 +257,63 @@ class ExportController extends Controller
     }
 
     /**
+     * Send the attendance report to a single user, and record the attempt.
+     */
+    public function sendEmail(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!in_array($user->role?->name, ['Administrator', 'Pimpinan'])) {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'format' => 'required|in:pdf,excel',
+        ]);
+
+        $target = User::with('employee')
+            ->where('id', $request->user_id)
+            ->whereNotNull('email')
+            ->first();
+
+        if (!$target) {
+            return $this->errorResponse('User tidak ditemukan.', 404);
+        }
+
+        if (!$target->employee_id || !$target->employee) {
+            return $this->errorResponse('User tidak memiliki relasi data karyawan — tidak dapat mengirim laporan.', 422);
+        }
+
+        $existsPending = EmailReport::where('user_id', $target->id)
+            ->where('start_date', $request->start_date)
+            ->where('end_date', $request->end_date)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($existsPending) {
+            return $this->errorResponse('Email laporan untuk user ini sedang dikirim. Tunggu beberapa saat lalu muat ulang.', 422);
+        }
+
+        $emailReport = EmailReport::create([
+            'user_id' => $target->id,
+            'employee_id' => $target->employee_id,
+            'recipient_email' => $target->email,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'format' => $request->format,
+            'status' => 'pending',
+        ]);
+
+        SendEmailReportJob::dispatch($emailReport);
+
+        return $this->successResponse([
+            'report_id' => $emailReport->id,
+        ], 'Email laporan sedang dikirim ke ' . $target->email . '.');
+    }
+
+    /**
      * Re-send an email report to a single user by creating a new attempt.
      */
     public function resendEmail(Request $request, EmailReport $emailReport): JsonResponse
