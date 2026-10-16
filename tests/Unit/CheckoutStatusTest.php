@@ -48,6 +48,10 @@ class CheckoutStatusTest extends TestCase
     {
         $service = $this->service();
 
+        // Sabtu jam kerja sampai 12:00 => pulang 10:00 s/d 11:59 "Pulang Cepat",
+        // mulai 12:00 "Pulang Tepat Waktu".
+        $this->assertSame('Pulang Cepat', $service->calculateCheckoutStatus('2026-08-29 10:00:00', $this->schedule()));
+        $this->assertSame('Pulang Cepat', $service->calculateCheckoutStatus('2026-08-29 11:00:00', $this->schedule()));
         $this->assertSame('Pulang Cepat', $service->calculateCheckoutStatus('2026-08-29 11:59:00', $this->schedule()));
         $this->assertSame('Pulang Tepat Waktu', $service->calculateCheckoutStatus('2026-08-29 12:00:00', $this->schedule()));
     }

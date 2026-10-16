@@ -76,9 +76,14 @@ class WorkScheduleLatenessTest extends TestCase
     {
         $schedule = $this->schedule();
 
-        $saturday = Carbon::parse('2026-08-01 07:30:00'); // Sabtu
-        $this->assertTrue($saturday->isSaturday());
-        $this->assertFalse($schedule->isLate($saturday), 'Sabtu 07:30 masih sebelum jam masuk Sabtu (08:00).');
+        // Sabtu 01:00 s/d jam masuk Sabtu (08:00) tidak dihitung terlambat.
+        $times = ['01:00:00', '03:00:00', '06:00:00', '07:30:00', '07:59:59', '08:00:00'];
+        foreach ($times as $time) {
+            $checkIn = Carbon::parse("2026-08-01 {$time}"); // Sabtu
+            $this->assertTrue($checkIn->isSaturday());
+            $this->assertFalse($schedule->isLate($checkIn), "Sabtu {$time} masih sebelum jam masuk Sabtu (08:00).");
+            $this->assertSame(0, $schedule->lateMinutes($checkIn));
+        }
 
         $this->assertTrue($schedule->isLate(Carbon::parse('2026-08-01 08:01:00')));
     }
