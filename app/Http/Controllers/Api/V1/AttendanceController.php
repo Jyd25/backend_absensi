@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\AttendanceStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\CheckInRequest;
 use App\Http\Requests\Attendance\CheckOutRequest;
@@ -264,10 +265,25 @@ class AttendanceController extends Controller
             'check_out_time' => 'nullable|date_format:Y-m-d\TH:i',
         ]);
 
+        $attendance->load('schedule');
+
+        // Status kehadiran (Hadir/Terlambat) selalu dihitung ulang dari jam
+        // masuk, memakai tanggal absensi itu sendiri. Baris hari libur tidak
+        // ikut dihitung ulang (jamnya 00:00 dan bukan absensi sungguhan).
+        if (array_key_exists('check_in_time', $validated)
+            && $attendance->attendance_status !== AttendanceStatus::Libur) {
+            $schedule = $attendance->schedule;
+            if ($validated['check_in_time'] && $schedule) {
+                $checkIn = Carbon::parse($validated['check_in_time']);
+                $validated['attendance_status'] = $schedule->isLate($checkIn) ? 'late' : 'present';
+            }
+        }
+
+        // Status pulang hanya dihitung ulang bila jam pulang diisi/diubah,
+        // supaya perubahan jam masuk tidak mengubah status pulang.
         if (array_key_exists('check_out_time', $validated)) {
-            $attendance->load('schedule');
             $validated['status_checkout'] = $this->attendanceService->calculateCheckoutStatus(
-                $validated['check_out_time'] ?? null,
+                $validated['check_out_time'] ?: null,
                 $attendance->schedule
             );
         }

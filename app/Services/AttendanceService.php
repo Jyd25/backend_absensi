@@ -304,6 +304,8 @@ class AttendanceService extends BaseService
 
     public function calculateCheckoutStatus($checkOutTime, $schedule = null): ?string
     {
+        // Tanpa jam pulang, status pulang tidak ditentukan. Jangan memakai waktu
+        // sekarang, karena itu membuat status berubah sendiri saat data disunting.
         if (!$checkOutTime) {
             return null;
         }
@@ -333,7 +335,9 @@ class AttendanceService extends BaseService
             $endMinute = $et->minute;
         }
 
-        $endTime = Carbon::parse(sprintf('%02d:%02d', $endHour, $endMinute), 'Asia/Jakarta');
+        // Jam pulang dibandingkan pada TANGGAL CHECKOUT itu sendiri, bukan
+        // tanggal hari ini (yang membuat absensi lama selalu "Pulang Cepat").
+        $endTime = $time->copy()->setTime($endHour, $endMinute, 0);
 
         return $time->lt($endTime)
             ? 'Pulang Cepat'
