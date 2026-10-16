@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             LocationSeeder::class,
             HolidaySeeder::class,
             UserSeeder::class,
+            AttendanceDemoSeeder::class,
         ]);
     }
 }
