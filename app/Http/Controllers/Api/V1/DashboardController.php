@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\User;
 use App\Models\WorkSchedule;
+use App\Services\AttendanceService;
 use App\Traits\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -185,8 +186,9 @@ class DashboardController extends Controller
                         : $s->end_time;
                 }
 
-                $startCarbon = $s->start_time instanceof \Carbon\Carbon ? $s->start_time : Carbon::parse($scheduleStart);
-                $presensiDeadline = $startCarbon->format('H:i');
+                // Batas akhir bisa check-in = jam pulang jadwal, bukan jam masuk.
+                // (Batas keterlambatan memakai jam masuk -> 'presensi_start'.)
+                $presensiDeadline = $scheduleEnd;
             }
 
             $result['my_attendance'] = $myAttendance ? [
@@ -208,6 +210,7 @@ class DashboardController extends Controller
                 'working_days' => $workingDays,
                 'presensi_start' => $scheduleStart,
                 'presensi_deadline' => $presensiDeadline,
+                'checkin_open' => AttendanceService::CHECK_IN_OPEN_TIME,
             ];
 
             $result['current_time'] = $now->format('H:i:s');
@@ -312,21 +315,6 @@ class DashboardController extends Controller
         $schedule = WorkSchedule::find($scheduleId);
         if (!$schedule) return 0;
 
-        $checkIn = Carbon::parse($checkInTime);
-        $isSaturday = $checkIn->isSaturday();
-
-        if ($isSaturday && $schedule->saturday_start_time) {
-            $scheduleStart = Carbon::parse($schedule->saturday_start_time);
-        } else {
-            $scheduleStart = Carbon::parse($schedule->start_time);
-        }
-
-        $lateThreshold = $scheduleStart;
-
-        if ($checkIn->gt($lateThreshold)) {
-            return max(0, $scheduleStart->diffInMinutes($checkIn));
-        }
-
-        return 0;
+        return $schedule->lateMinutes(Carbon::parse($checkInTime));
     }
 }

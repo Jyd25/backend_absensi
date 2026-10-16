@@ -94,48 +94,25 @@ class AttendanceController extends Controller
         $now = Carbon::now('Asia/Jakarta');
         $minute = $now->hour * 60 + $now->minute;
 
-        // Determine schedule start time for check-in window
+        // Batas akhir check-in mengikuti jam pulang jadwal pegawai.
         $employee = $employeeId ? \App\Models\Employee::with('schedule')->find($employeeId) : null;
-        $schedule = $employee?->schedule;
-        $isSaturday = $now->isSaturday();
 
-        $scheduleStartHour = 7;
-        $scheduleStartMinute = 0;
-        $scheduleEndHour = 16;
-        $scheduleEndMinute = 0;
+        $scheduleEnd = $employee?->schedule?->endTimeFor($now);
+        $presensiDeadlineMinute = $scheduleEnd
+            ? ($scheduleEnd->hour * 60 + $scheduleEnd->minute)
+            : (16 * 60);
 
-        if ($schedule) {
-            if ($isSaturday && $schedule->saturday_start_time) {
-                $st = $schedule->saturday_start_time instanceof \Carbon\Carbon
-                    ? $schedule->saturday_start_time
-                    : \Carbon\Carbon::parse($schedule->saturday_start_time);
-                $et = $schedule->saturday_end_time instanceof \Carbon\Carbon
-                    ? $schedule->saturday_end_time
-                    : \Carbon\Carbon::parse($schedule->saturday_end_time);
-            } else {
-                $st = $schedule->start_time instanceof \Carbon\Carbon
-                    ? $schedule->start_time
-                    : \Carbon\Carbon::parse($schedule->start_time);
-                $et = $schedule->end_time instanceof \Carbon\Carbon
-                    ? $schedule->end_time
-                    : \Carbon\Carbon::parse($schedule->end_time);
-            }
-            $scheduleStartHour = $st->hour;
-            $scheduleStartMinute = $st->minute;
-            $scheduleEndHour = $et->hour;
-            $scheduleEndMinute = $et->minute;
-        }
+        // Check-in dibuka pukul 01:00 WIB. Pegawai yang datang lebih awal tetap
+        // berstatus Hadir selama belum melewati jam masuk jadwal.
+        [$openHour, $openMinute] = array_map('intval', explode(':', AttendanceService::CHECK_IN_OPEN_TIME));
+        $presensiOpenMinute = $openHour * 60 + $openMinute;
 
-        $presensiStartMinute = $scheduleStartHour * 60 + $scheduleStartMinute;
-        $presensiDeadlineMinute = $scheduleEndHour * 60 + $scheduleEndMinute;
-
-        if ($minute < $presensiStartMinute) {
-            $startTime = sprintf('%02d:%02d', $scheduleStartHour, $scheduleStartMinute);
-            return $this->errorResponse("Belum waktu presensi. Waktu check-in dimulai pukul {$startTime} WIB.", 422);
+        if ($minute < $presensiOpenMinute) {
+            return $this->errorResponse('Belum waktu presensi. Waktu check-in dimulai pukul ' . AttendanceService::CHECK_IN_OPEN_TIME . ' WIB.', 422);
         }
 
         if ($minute >= $presensiDeadlineMinute) {
-            $endTime = sprintf('%02d:%02d', $scheduleEndHour, $scheduleEndMinute);
+            $endTime = sprintf('%02d:%02d', intdiv($presensiDeadlineMinute, 60), $presensiDeadlineMinute % 60);
             return $this->errorResponse("Batas waktu check-in telah berakhir ({$endTime} WIB). Silakan lakukan check-out.", 422);
         }
 

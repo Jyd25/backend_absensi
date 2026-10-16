@@ -19,6 +19,13 @@ use Illuminate\Support\Facades\DB;
 
 class AttendanceService extends BaseService
 {
+    /**
+     * Jam paling awal pegawai boleh melakukan check-in (WIB).
+     * Check-in mulai pukul ini sampai jam masuk jadwal tercatat "Hadir",
+     * hanya check-in setelah jam masuk jadwal yang berstatus "Terlambat".
+     */
+    public const CHECK_IN_OPEN_TIME = '01:00';
+
     protected AttendanceRepository $attendanceRepository;
 
     public function __construct(AttendanceRepository $attendanceRepository)
@@ -98,21 +105,13 @@ class AttendanceService extends BaseService
             $lateMinutes = 0;
 
             if ($schedule) {
+                // Batas terlambat = jam masuk jadwal. Check-in pukul 01:00 s/d
+                // jam masuk (mis. 07:15) tetap "Hadir", bukan "Terlambat".
                 $checkInTime = Carbon::now();
-                $isSaturday = $checkInTime->isSaturday();
-
-                if ($isSaturday && $schedule->saturday_start_time) {
-                    $scheduleStart = Carbon::parse($schedule->saturday_start_time);
-                } else {
-                    $scheduleStart = Carbon::parse($schedule->start_time);
-                }
-
-                $lateThreshold = $scheduleStart;
-
-                if ($checkInTime->gt($lateThreshold)) {
-                    $attendanceStatus = AttendanceStatus::Late;
-                    $lateMinutes = $scheduleStart->diffInMinutes($checkInTime);
-                }
+                $attendanceStatus = $schedule->isLate($checkInTime)
+                    ? AttendanceStatus::Late
+                    : AttendanceStatus::Present;
+                $lateMinutes = $schedule->lateMinutes($checkInTime);
             }
 
             $attendance = Attendance::create([

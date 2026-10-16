@@ -74,16 +74,14 @@ class ProcessAttendanceJob implements ShouldQueue
 
     private function determineStatus(Attendance $attendance, WorkSchedule $schedule): \App\Enums\AttendanceStatus
     {
-        $checkInTime = \Carbon\Carbon::parse($attendance->check_in_time);
-        $scheduleStart = \Carbon\Carbon::parse($schedule->start_time);
-
-        $lateThreshold = $scheduleStart;
-
-        if ($checkInTime->gt($lateThreshold)) {
-            return \App\Enums\AttendanceStatus::Late;
+        if (!$attendance->check_in_time) {
+            return \App\Enums\AttendanceStatus::Present;
         }
 
-        return \App\Enums\AttendanceStatus::Present;
+        // Batas terlambat = jam masuk jadwal pada tanggal check-in.
+        return $schedule->isLate(\Carbon\Carbon::parse($attendance->check_in_time))
+            ? \App\Enums\AttendanceStatus::Late
+            : \App\Enums\AttendanceStatus::Present;
     }
 
     private function calculateDistance(float $lat1, float $lon1, float $lat2, float $lon2): float

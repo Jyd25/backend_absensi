@@ -199,33 +199,25 @@ class AttendanceCorrectionController extends Controller
 
     private function recalculateAttendanceStatus(Attendance $attendance, $schedule): void
     {
-        $checkInTime = Carbon::parse($attendance->check_in_time);
+        $checkInTime = $attendance->check_in_time ? Carbon::parse($attendance->check_in_time) : null;
         $checkOutTime = $attendance->check_out_time ? Carbon::parse($attendance->check_out_time) : null;
-        $isSaturday = $checkInTime->isSaturday();
 
-        $scheduleStart = null;
-        $scheduleEnd = null;
+        // Batas terlambat dihitung pada tanggal check-in itu sendiri (bukan
+        // tanggal hari ini). Check-in pukul 01:00 s/d jam masuk jadwal tetap
+        // "Hadir"; tanpa jam masuk, status tidak diubah.
+        if ($checkInTime && $schedule) {
+            $attendance->attendance_status = $schedule->isLate($checkInTime) ? 'late' : 'present';
+        }
 
-        if ($schedule) {
-            if ($isSaturday && $schedule->saturday_start_time) {
-                $scheduleStart = $schedule->saturday_start_time instanceof Carbon ? $schedule->saturday_start_time : Carbon::parse($schedule->saturday_start_time);
-                $scheduleEnd = $schedule->saturday_end_time instanceof Carbon ? $schedule->saturday_end_time : Carbon::parse($schedule->saturday_end_time);
-            } else {
-                $scheduleStart = $schedule->start_time instanceof Carbon ? $schedule->start_time : Carbon::parse($schedule->start_time);
-                $scheduleEnd = $schedule->end_time instanceof Carbon ? $schedule->end_time : Carbon::parse($schedule->end_time);
+        if ($checkOutTime && $schedule) {
+            $scheduleEnd = $schedule->endTimeFor($checkOutTime);
+            if ($scheduleEnd) {
+                $scheduleEndAt = $checkOutTime->copy()->setTime($scheduleEnd->hour, $scheduleEnd->minute, 0);
+                $attendance->status_checkout = $checkOutTime->lt($scheduleEndAt) ? 'Pulang Cepat' : 'Pulang Tepat Waktu';
             }
         }
 
-        if ($scheduleStart) {
-            $lateThreshold = $scheduleStart;
-            $checkInMin = $checkInTime->copy()->setHour($scheduleStart->hour)->setMinute($scheduleStart->minute);
-            $attendance->attendance_status = $checkInTime->gt($lateThreshold) ? 'late' : 'present';
-            $attendance->save();
-        }
-
-        if ($checkOutTime && $scheduleEnd) {
-            $scheduleEndCarbon = $checkOutTime->copy()->setHour($scheduleEnd->hour)->setMinute($scheduleEnd->minute);
-            $attendance->status_checkout = $checkOutTime->lt($scheduleEndCarbon) ? 'Pulang Cepat' : 'Pulang Tepat Waktu';
+        if ($attendance->isDirty()) {
             $attendance->save();
         }
     }
